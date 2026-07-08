@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">MoreFocus</string>
     <string name="accessibility_service_label">MoreFocus</string>
-    <string name="accessibility_service_description">Detecta Instagram Reels para mostrar um aviso de foco. O MoreFocus não captura imagens, não grava vídeos e não envia dados.</string>
+    <string name="accessibility_service_description">Detecta Instagram Reels para aplicar um limite diário de visualização. O MoreFocus não captura imagens, não grava vídeos e não envia dados.</string>
 </resources>

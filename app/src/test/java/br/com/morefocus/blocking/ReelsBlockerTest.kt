@@ -8,7 +8,7 @@ class ReelsBlockerTest {
     private val engine = BlockDecisionEngine(ReelsDetector())
 
     @Test
-    fun blocksInstagramReelsWhenFocusAndRuleAreEnabled() {
+    fun blocksInstagramReelsWhenDailyLimitIsReached() {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "com.instagram.clips.viewer.ClipsViewerActivity",
@@ -24,7 +24,7 @@ class ReelsBlockerTest {
 
         assertTrue(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -32,8 +32,24 @@ class ReelsBlockerTest {
     }
 
     @Test
+    fun doesNotBlockInstagramReelsBeforeDailyLimit() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    dailyLimitMinutes = 15,
+                    dailyUsageMillis = 15 * 60 * 1000L - 1
+                ),
+                screen = explicitReelsScreen(),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
     fun doesNotBlockInstagramFeedProfileOrMessages() {
-        val settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true)
+        val settings = settingsAtLimit()
 
         val feed = instagramScreen(label = "Página inicial")
         val profile = instagramScreen(label = "Perfil")
@@ -50,7 +66,7 @@ class ReelsBlockerTest {
 
         assertFalse(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = false, instagramReelsEnabled = true),
+                settings = settingsAtLimit().copy(focusEnabled = false),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -63,7 +79,7 @@ class ReelsBlockerTest {
 
         assertFalse(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = false),
+                settings = settingsAtLimit().copy(instagramReelsEnabled = false),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -79,7 +95,8 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    pauseUntilMillis = 1_300L
+                    pauseUntilMillis = 1_300L,
+                    dailyUsageMillis = 15 * 60 * 1000L
                 ),
                 screen = screen,
                 nowMillis = 1_000L
@@ -96,7 +113,8 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    pauseUntilMillis = 999L
+                    pauseUntilMillis = 999L,
+                    dailyUsageMillis = 15 * 60 * 1000L
                 ),
                 screen = screen,
                 nowMillis = 1_000L
@@ -110,7 +128,7 @@ class ReelsBlockerTest {
 
         assertFalse(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -135,7 +153,7 @@ class ReelsBlockerTest {
 
         assertTrue(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -158,7 +176,7 @@ class ReelsBlockerTest {
 
         assertTrue(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -175,7 +193,7 @@ class ReelsBlockerTest {
 
         assertFalse(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
                 nowMillis = 1_000L
             )
@@ -198,8 +216,24 @@ class ReelsBlockerTest {
 
         assertFalse(
             engine.shouldBlock(
-                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                settings = settingsAtLimit(),
                 screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun blocksWhenDailyLimitIsLoweredBelowCurrentUsage() {
+        assertTrue(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    dailyLimitMinutes = 5,
+                    dailyUsageMillis = 10 * 60 * 1000L
+                ),
+                screen = explicitReelsScreen(),
                 nowMillis = 1_000L
             )
         )
@@ -220,5 +254,13 @@ class ReelsBlockerTest {
             packageName = "com.instagram.android",
             className = "com.instagram.mainactivity.InstagramMainActivity",
             root = NodeSnapshot(text = label)
+        )
+
+    private fun settingsAtLimit(): BlockSettings =
+        BlockSettings(
+            focusEnabled = true,
+            instagramReelsEnabled = true,
+            dailyLimitMinutes = 15,
+            dailyUsageMillis = 15 * 60 * 1000L
         )
 }

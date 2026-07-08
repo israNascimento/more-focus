@@ -52,7 +52,7 @@ fun FocusOverlay(
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = "Você pediu ao MoreFocus para evitar Instagram Reels.",
+                    text = "Você atingiu seu limite diário de Instagram Reels.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFF374151)
                 )

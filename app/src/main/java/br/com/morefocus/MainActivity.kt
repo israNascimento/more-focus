@@ -9,6 +9,9 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,9 +20,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -64,6 +70,7 @@ private fun MoreFocusApp() {
     var serviceEnabled by remember { mutableStateOf(context.isMoreFocusAccessibilityServiceEnabled()) }
     var focusEnabled by remember { mutableStateOf(preferences.isFocusEnabled()) }
     var instagramReelsEnabled by remember { mutableStateOf(preferences.isInstagramReelsEnabled()) }
+    var dailyReelsLimitMinutes by remember { mutableStateOf(preferences.dailyReelsLimitMinutes()) }
     val lifecycleOwner = remember(context) { context.findLifecycleOwner() }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -76,6 +83,7 @@ private fun MoreFocusApp() {
                 serviceEnabled = context.isMoreFocusAccessibilityServiceEnabled()
                 focusEnabled = preferences.isFocusEnabled()
                 instagramReelsEnabled = preferences.isInstagramReelsEnabled()
+                dailyReelsLimitMinutes = preferences.dailyReelsLimitMinutes()
             }
         }
 
@@ -87,6 +95,7 @@ private fun MoreFocusApp() {
         serviceEnabled = serviceEnabled,
         focusEnabled = focusEnabled,
         instagramReelsEnabled = instagramReelsEnabled,
+        dailyReelsLimitMinutes = dailyReelsLimitMinutes,
         onFocusEnabledChange = { enabled ->
             focusEnabled = enabled
             preferences.setFocusEnabled(enabled)
@@ -94,6 +103,10 @@ private fun MoreFocusApp() {
         onInstagramReelsEnabledChange = { enabled ->
             instagramReelsEnabled = enabled
             preferences.setInstagramReelsEnabled(enabled)
+        },
+        onDailyReelsLimitMinutesChange = { limitMinutes ->
+            dailyReelsLimitMinutes = limitMinutes
+            preferences.setDailyReelsLimitMinutes(limitMinutes)
         },
         onOpenAccessibilitySettings = {
             context.openAccessibilitySettings()
@@ -106,10 +119,13 @@ private fun MoreFocusScreen(
     serviceEnabled: Boolean,
     focusEnabled: Boolean,
     instagramReelsEnabled: Boolean,
+    dailyReelsLimitMinutes: Int,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onDailyReelsLimitMinutesChange: (Int) -> Unit,
     onOpenAccessibilitySettings: () -> Unit
 ) {
+    val scrollable = rememberScrollState()
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Surface(
             modifier = Modifier
@@ -120,6 +136,7 @@ private fun MoreFocusScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(scrollable)
                     .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -135,8 +152,10 @@ private fun MoreFocusScreen(
                 PreferenceCard(
                     focusEnabled = focusEnabled,
                     instagramReelsEnabled = instagramReelsEnabled,
+                    dailyReelsLimitMinutes = dailyReelsLimitMinutes,
                     onFocusEnabledChange = onFocusEnabledChange,
-                    onInstagramReelsEnabledChange = onInstagramReelsEnabledChange
+                    onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
+                    onDailyReelsLimitMinutesChange = onDailyReelsLimitMinutesChange
                 )
             }
         }
@@ -152,7 +171,7 @@ private fun Header() {
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Bloqueio local de Instagram Reels para proteger seu foco.",
+            text = "Limite diário local de Instagram Reels para proteger seu foco.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -185,7 +204,7 @@ private fun ServiceStatusCard(
             )
             Text(
                 text = if (serviceEnabled) {
-                    "O MoreFocus já pode detectar Instagram Reels."
+                    "O MoreFocus já pode detectar Instagram Reels e aplicar seu limite diário."
                 } else {
                     "Ative o serviço MoreFocus nas configurações do Android."
                 },
@@ -211,7 +230,7 @@ private fun DisclosureCard() {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "O MoreFocus lê textos, descrições e identificadores da tela do Instagram apenas para detectar Reels. Ele não captura imagens, não grava vídeos e não envia dados.",
+                text = "O MoreFocus lê textos, descrições e identificadores da tela do Instagram apenas para detectar Reels e aplicar seu limite diário. Ele não captura imagens, não grava vídeos e não envia dados.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -223,10 +242,12 @@ private fun DisclosureCard() {
 private fun PreferenceCard(
     focusEnabled: Boolean,
     instagramReelsEnabled: Boolean,
+    dailyReelsLimitMinutes: Int,
     onFocusEnabledChange: (Boolean) -> Unit,
-    onInstagramReelsEnabledChange: (Boolean) -> Unit
+    onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onDailyReelsLimitMinutesChange: (Int) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "Preferências",
@@ -242,10 +263,58 @@ private fun PreferenceCard(
             )
             ToggleRow(
                 title = "Bloquear Instagram Reels",
-                description = "Mostra um aviso ao detectar Reels.",
+                description = "Mostra um aviso quando o limite diário de Reels for atingido.",
                 checked = instagramReelsEnabled,
                 onCheckedChange = onInstagramReelsEnabledChange
             )
+            DailyLimitSelector(
+                selectedLimitMinutes = dailyReelsLimitMinutes,
+                onLimitSelected = onDailyReelsLimitMinutesChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun DailyLimitSelector(
+    selectedLimitMinutes: Int,
+    onLimitSelected: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Limite diário de Reels",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = "O aviso aparece quando esse tempo diário for atingido.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            MoreFocusPreferences.DAILY_REELS_LIMIT_MINUTE_OPTIONS.chunked(3).forEach { rowOptions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowOptions.forEach { limitMinutes ->
+                        FilterChip(
+                            modifier = Modifier.weight(1f),
+                            selected = selectedLimitMinutes == limitMinutes,
+                            onClick = { onLimitSelected(limitMinutes) },
+                            label = { Text(text = "$limitMinutes min") }
+                        )
+                    }
+                    repeat(3 - rowOptions.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
         }
     }
 }
@@ -329,8 +398,10 @@ private fun MoreFocusScreenPreview() {
             serviceEnabled = false,
             focusEnabled = true,
             instagramReelsEnabled = true,
+            dailyReelsLimitMinutes = MoreFocusPreferences.DEFAULT_DAILY_REELS_LIMIT_MINUTES,
             onFocusEnabledChange = {},
             onInstagramReelsEnabledChange = {},
+            onDailyReelsLimitMinutesChange = {},
             onOpenAccessibilitySettings = {}
         )
     }

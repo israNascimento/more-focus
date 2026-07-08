@@ -2,11 +2,21 @@ package br.com.morefocus.blocking
 
 import android.util.Log
 
+private const val MILLIS_PER_MINUTE = 60 * 1000L
+
 data class BlockSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
-    val pauseUntilMillis: Long = 0L
-)
+    val pauseUntilMillis: Long = 0L,
+    val dailyLimitMinutes: Int = 15,
+    val dailyUsageMillis: Long = 0L
+) {
+    val dailyLimitMillis: Long
+        get() = dailyLimitMinutes.coerceAtLeast(1) * MILLIS_PER_MINUTE
+
+    val remainingDailyLimitMillis: Long
+        get() = (dailyLimitMillis - dailyUsageMillis).coerceAtLeast(0L)
+}
 
 data class ScreenSnapshot(
     val packageName: String?,
@@ -31,11 +41,20 @@ class BlockDecisionEngine(
     private val reelsDetector: ReelsDetector
 ) {
     fun shouldBlock(settings: BlockSettings, screen: ScreenSnapshot, nowMillis: Long): Boolean {
+        return shouldBlock(
+            settings = settings,
+            isInstagramReels = reelsDetector.isInstagramReels(screen),
+            nowMillis = nowMillis
+        )
+    }
+
+    fun shouldBlock(settings: BlockSettings, isInstagramReels: Boolean, nowMillis: Long): Boolean {
         if (!settings.focusEnabled) return false
         if (!settings.instagramReelsEnabled) return false
         if (settings.pauseUntilMillis > nowMillis) return false
+        if (!isInstagramReels) return false
 
-        return reelsDetector.isInstagramReels(screen)
+        return settings.dailyUsageMillis >= settings.dailyLimitMillis
     }
 }
 
