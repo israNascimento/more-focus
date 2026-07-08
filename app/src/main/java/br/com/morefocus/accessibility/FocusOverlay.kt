@@ -18,9 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import br.com.morefocus.R
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
 @Composable
@@ -46,13 +48,13 @@ fun FocusOverlay(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Reels bloqueado",
+                    text = stringResource(R.string.focus_overlay_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = "Você atingiu seu limite diário de Instagram Reels.",
+                    text = stringResource(R.string.focus_overlay_description),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFF374151)
                 )
@@ -64,10 +66,10 @@ fun FocusOverlay(
                     )
                 ) {
                     Button(onClick = onPauseClick) {
-                        Text(text = "Ignorar 1 min")
+                        Text(text = stringResource(R.string.focus_overlay_ignore_minutes, 1))
                     }
                     Button(onClick = onExitClick) {
-                        Text(text = "Sair")
+                        Text(text = stringResource(R.string.focus_overlay_exit))
                     }
                 }
             }

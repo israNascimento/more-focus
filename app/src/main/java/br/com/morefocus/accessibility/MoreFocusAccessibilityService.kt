@@ -17,12 +17,13 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import br.com.morefocus.MoreFocusApplication
 import br.com.morefocus.blocking.BlockDecisionEngine
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
-import br.com.morefocus.settings.MoreFocusPreferences
+import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
 class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistryOwner {
@@ -32,7 +33,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private val handler = Handler(Looper.getMainLooper())
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
-    private lateinit var preferences: MoreFocusPreferences
+    private lateinit var settingsRepository: MoreFocusSettingsRepository
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
     private var reelsSessionStartedAtMillis: Long? = null
@@ -53,7 +54,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        preferences = MoreFocusPreferences(this)
+        settingsRepository = (application as MoreFocusApplication)
+            .appContainer
+            .settingsRepository
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
     }
@@ -63,7 +66,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun evaluateCurrentScreen(event: AccessibilityEvent? = null) {
-        if (!::preferences.isInitialized) return
+        if (!::settingsRepository.isInitialized) return
 
         val nowMillis = System.currentTimeMillis()
         val root = rootInActiveWindow
@@ -75,7 +78,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val isInstagramReels = reelsDetector.isInstagramReels(screen)
 
         recordActiveReelsUsage(nowMillis)
-        val settings = preferences.getBlockSettings(nowMillis)
+        val settings = settingsRepository.getBlockSettings(nowMillis)
         val shouldBlock = decisionEngine.shouldBlock(
             settings = settings,
             isInstagramReels = isInstagramReels,
@@ -144,7 +147,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                     FocusOverlay(
                         onPauseClick = {
                             val nowMillis = System.currentTimeMillis()
-                            preferences.pauseFor(PAUSE_DURATION_MILLIS, nowMillis)
+                            settingsRepository.pauseFor(PAUSE_DURATION_MILLIS, nowMillis)
                             hideOverlay()
                             reelsSessionStartedAtMillis = nowMillis
                             scheduleEvaluation(PAUSE_DURATION_MILLIS)
@@ -161,7 +164,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     private fun recordActiveReelsUsage(nowMillis: Long) {
         val startedAtMillis = reelsSessionStartedAtMillis ?: return
-        preferences.recordDailyReelsUsage(
+        settingsRepository.recordDailyReelsUsage(
             startedAtMillis = startedAtMillis,
             endedAtMillis = nowMillis
         )
@@ -169,7 +172,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun stopTracking(nowMillis: Long) {
-        if (!::preferences.isInitialized) return
+        if (!::settingsRepository.isInitialized) return
         recordActiveReelsUsage(nowMillis)
         reelsSessionStartedAtMillis = null
         cancelScheduledCheck()
