@@ -117,13 +117,101 @@ class ReelsBlockerTest {
         )
     }
 
+    @Test
+    fun blocksInstagramReelsFromViewerResourceIdsWithoutText() {
+        val screen = ScreenSnapshot(
+            packageName = "com.instagram.android",
+            className = "androidx.recyclerview.widget.RecyclerView",
+            root = NodeSnapshot(
+                viewIdResourceName = "com.instagram.android:id/clips_viewer_container",
+                children = listOf(
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_video_player"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_like_button"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_comments_button"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_share_button")
+                )
+            )
+        )
+
+        assertTrue(
+            engine.shouldBlock(
+                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun blocksInstagramReelsFromVideoAndSideActionResourceIdsWithoutText() {
+        val screen = ScreenSnapshot(
+            packageName = "com.instagram.android",
+            className = "android.view.ViewGroup",
+            root = NodeSnapshot(
+                children = listOf(
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_viewer_video_layout"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_like_button"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_comments_button")
+                )
+            )
+        )
+
+        assertTrue(
+            engine.shouldBlock(
+                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockSingleGenericClipsNavigationResourceId() {
+        val screen = ScreenSnapshot(
+            packageName = "com.instagram.android",
+            className = "com.instagram.mainactivity.InstagramMainActivity",
+            root = NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_tab")
+        )
+
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockGenericFeedActionButtonsWithoutReelsViewerIds() {
+        val screen = ScreenSnapshot(
+            packageName = "com.instagram.android",
+            className = "com.instagram.mainactivity.InstagramMainActivity",
+            root = NodeSnapshot(
+                children = listOf(
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/like_button"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/comment_button"),
+                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/share_button")
+                )
+            )
+        )
+
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(focusEnabled = true, instagramReelsEnabled = true),
+                screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
     private fun explicitReelsScreen(): ScreenSnapshot =
         ScreenSnapshot(
             packageName = "com.instagram.android",
             className = null,
             root = NodeSnapshot(
-                viewIdResourceName = "com.instagram.android:id/clips_viewer",
-                children = listOf(NodeSnapshot(text = "Áudio original"))
+                viewIdResourceName = "com.instagram.android:id/clips_viewer_container",
+                children = listOf(NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_video_player"))
             )
         )
 

@@ -2,6 +2,7 @@ package br.com.morefocus.settings
 
 import android.content.Context
 import br.com.morefocus.blocking.BlockSettings
+import androidx.core.content.edit
 
 class MoreFocusPreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -20,20 +21,20 @@ class MoreFocusPreferences(context: Context) {
         preferences.getBoolean(KEY_FOCUS_ENABLED, true)
 
     fun setFocusEnabled(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_FOCUS_ENABLED, enabled).apply()
+        preferences.edit { putBoolean(KEY_FOCUS_ENABLED, enabled) }
     }
 
     fun isInstagramReelsEnabled(): Boolean =
         preferences.getBoolean(KEY_INSTAGRAM_REELS_ENABLED, true)
 
     fun setInstagramReelsEnabled(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_INSTAGRAM_REELS_ENABLED, enabled).apply()
+        preferences.edit { putBoolean(KEY_INSTAGRAM_REELS_ENABLED, enabled) }
     }
 
     fun pauseFor(durationMillis: Long, nowMillis: Long = System.currentTimeMillis()) {
-        preferences.edit()
-            .putLong(KEY_PAUSE_UNTIL_MILLIS, nowMillis + durationMillis)
-            .apply()
+        preferences.edit {
+            putLong(KEY_PAUSE_UNTIL_MILLIS, nowMillis + durationMillis)
+        }
     }
 
     fun pauseUntilMillis(): Long =

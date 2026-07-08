@@ -1,33 +1,52 @@
 package br.com.morefocus.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import br.com.morefocus.blocking.BlockDecisionEngine
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
 import br.com.morefocus.settings.MoreFocusPreferences
+import br.com.morefocus.ui.theme.MoreFocusTheme
 
-class MoreFocusAccessibilityService : AccessibilityService() {
+class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistryOwner {
     private val decisionEngine = BlockDecisionEngine(ReelsDetector())
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private lateinit var preferences: MoreFocusPreferences
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
+
+    override fun onCreate() {
+        super.onCreate()
+        savedStateRegistryController.performAttach()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         preferences = MoreFocusPreferences(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -59,6 +78,7 @@ class MoreFocusAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         hideOverlay()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
     }
 
@@ -86,90 +106,28 @@ class MoreFocusAccessibilityService : AccessibilityService() {
         overlayView = null
     }
 
-    private fun buildOverlayView(): View {
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(Color.argb(222, 17, 24, 39))
-        }
-
-        val panel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24.dp(), 24.dp(), 24.dp(), 24.dp())
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = 18.dp().toFloat()
-            }
-        }
-
-        panel.addView(
-            TextView(this).apply {
-                text = "Reels bloqueado"
-                setTextColor(Color.rgb(17, 24, 39))
-                textSize = 22f
-                typeface = Typeface.DEFAULT_BOLD
-            }
-        )
-
-        panel.addView(
-            TextView(this).apply {
-                text = "Você pediu ao MoreFocus para evitar Instagram Reels."
-                setTextColor(Color.rgb(55, 65, 81))
-                textSize = 16f
-                setPadding(0, 10.dp(), 0, 18.dp())
-            }
-        )
-
-        panel.addView(
-            LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.END
-
-                addView(
-                    Button(context).apply {
-                        text = "Ignorar 5 min"
-                        setOnClickListener {
+    private fun buildOverlayView(): View =
+        ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@MoreFocusAccessibilityService)
+            setViewTreeSavedStateRegistryOwner(this@MoreFocusAccessibilityService)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent {
+                MoreFocusTheme {
+                    FocusOverlay(
+                        onPauseClick = {
                             preferences.pauseFor(PAUSE_DURATION_MILLIS)
                             hideOverlay()
-                        }
-                    }
-                )
-
-                addView(
-                    Button(context).apply {
-                        text = "Sair"
-                        setOnClickListener {
+                        },
+                        onExitClick = {
                             performGlobalAction(GLOBAL_ACTION_BACK)
                             hideOverlay()
                         }
-                    },
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        marginStart = 8.dp()
-                    }
-                )
+                    )
+                }
             }
-        )
-
-        root.addView(
-            panel,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.CENTER
-                leftMargin = 24.dp()
-                rightMargin = 24.dp()
-            }
-        )
-
-        return root
-    }
-
-    private fun Int.dp(): Int =
-        (this * resources.displayMetrics.density).toInt()
+        }
 
     private companion object {
-        const val PAUSE_DURATION_MILLIS = 5 * 60 * 1000L
+        const val PAUSE_DURATION_MILLIS = 1 * 60 * 1000L
     }
 }

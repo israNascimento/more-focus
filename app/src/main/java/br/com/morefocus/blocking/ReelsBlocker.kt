@@ -1,5 +1,7 @@
 package br.com.morefocus.blocking
 
+import android.util.Log
+
 data class BlockSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
@@ -39,28 +41,55 @@ class BlockDecisionEngine(
 
 class ReelsDetector {
     fun isInstagramReels(screen: ScreenSnapshot): Boolean {
-        if (screen.packageName != INSTAGRAM_PACKAGE) return false
+        if (screen.packageName != INSTAGRAM_PACKAGE) {
+            logDecision("not_instagram package=${screen.packageName}")
+            return false
+        }
 
         val className = screen.className.normalized()
-        if (className.contains("clips") || className.contains("reels")) return true
-
-        val root = screen.root ?: return false
-        val nodes = root.allNodes().toList()
-        val hasExplicitSurface = nodes.any { node ->
-            val viewId = node.viewIdResourceName.normalized()
-            viewId.contains("clips") || viewId.contains("reels")
+        val classMarker = VIEWER_CLASS_MARKERS.firstOrNull { marker -> className.contains(marker) }
+        if (classMarker != null) {
+            logDecision("viewer_class marker=$classMarker className=$className")
+            return true
         }
-        if (hasExplicitSurface) return true
 
-        val labels = nodes.flatMap { node ->
-            listOf(node.text.normalized(), node.contentDescription.normalized())
-        }.filter { it.isNotBlank() }
+        val root = screen.root
+        if (root == null) {
+            logDecision("no_root className=$className")
+            return false
+        }
+        val nodes = root.allNodes().toList()
+        val resourceIds = nodes.mapNotNull { node -> node.resourceEntryName() }.toSet()
+        val primaryViewerIds = resourceIds.filter { it in PRIMARY_VIEWER_RESOURCE_IDS }
 
-        val hasReelsTitle = labels.any { it == "reels" || it.contains("instagram reels") }
-        val actionCount = labels.count { label -> label in REELS_ACTION_LABELS }
-        val hasAudioLabel = labels.any { it.contains("audio original") || it.contains("original audio") }
+        if (primaryViewerIds.isNotEmpty()) {
+            logDecision(
+                "primary_viewer_resource className=$className nodeCount=${nodes.size} " +
+                    "resourceIds=${resourceIds.size} matched=$primaryViewerIds"
+            )
+            return true
+        }
 
-        return hasReelsTitle && (actionCount >= MIN_REELS_ACTION_LABELS || hasAudioLabel)
+        val mediaIds = resourceIds.filter { it in MEDIA_RESOURCE_IDS }
+        val viewerChromeIds = resourceIds.filter { it in VIEWER_CHROME_RESOURCE_IDS }
+        val sideActionIds = resourceIds.filter { it in SIDE_ACTION_RESOURCE_IDS }
+
+        if (
+            mediaIds.isNotEmpty() &&
+            (viewerChromeIds.isNotEmpty() || sideActionIds.size >= MIN_SIDE_ACTION_RESOURCE_IDS)
+        ) {
+            logDecision(
+                "viewer_resource_combo className=$className nodeCount=${nodes.size} " +
+                    "resourceIds=${resourceIds.size} media=$mediaIds chrome=$viewerChromeIds sideActions=$sideActionIds"
+            )
+            return true
+        }
+
+        logDecision(
+            "no_match className=$className nodeCount=${nodes.size} resourceIds=${resourceIds.size}"
+        )
+
+        return false
     }
 
     private fun String?.normalized(): String = this
@@ -68,17 +97,62 @@ class ReelsDetector {
         ?.lowercase()
         .orEmpty()
 
-    private companion object {
-        const val INSTAGRAM_PACKAGE = "com.instagram.android"
-        const val MIN_REELS_ACTION_LABELS = 2
+    private fun NodeSnapshot.resourceEntryName(): String? {
+        val viewId = viewIdResourceName.normalized()
+        if (viewId.isBlank()) return null
+        return viewId.substringAfterLast('/')
+    }
 
-        val REELS_ACTION_LABELS = setOf(
-            "curtir",
-            "like",
-            "comentar",
-            "comment",
-            "compartilhar",
-            "share"
+    private fun logDecision(message: String) {
+        runCatching { Log.d(TAG, "isInstagramReels $message") }
+    }
+
+    private companion object {
+        const val TAG = "ReelsDetector"
+        const val INSTAGRAM_PACKAGE = "com.instagram.android"
+        const val MIN_SIDE_ACTION_RESOURCE_IDS = 2
+
+        val VIEWER_CLASS_MARKERS = setOf(
+            "clips.viewer",
+            "clipsviewer",
+            "clips_viewer",
+            "reels.viewer",
+            "reelsviewer",
+            "reels_viewer"
+        )
+
+        val PRIMARY_VIEWER_RESOURCE_IDS = setOf(
+            "clips_viewer_container",
+            "clips_viewer_view_pager"
+        )
+
+        val MEDIA_RESOURCE_IDS = setOf(
+            "clips_viewer_video_layout",
+            "clips_video_player",
+            "clips_video_layout",
+            "clips_video_container",
+            "reels_player_asset"
+        )
+
+        val SIDE_ACTION_RESOURCE_IDS = setOf(
+            "clips_ufi_component",
+            "clips_ufi_like_button",
+            "clips_ufi_comments_button",
+            "clips_ufi_share_button",
+            "clips_ufi_more_button"
+        )
+
+        val VIEWER_CHROME_RESOURCE_IDS = setOf(
+            "clips_viewer_action_bar",
+            "clips_viewer_action_bar_title",
+            "clips_viewer_camera_button",
+            "clips_navigation_bar_container",
+            "clips_navigation_bar_row",
+            "clips_author_info_component",
+            "clips_caption_component",
+            "clips_viewer_media_info",
+            "clips_viewer_media_info_container",
+            "clips_cta"
         )
     }
 }
