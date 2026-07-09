@@ -8,6 +8,102 @@ class ReelsBlockerTest {
     private val engine = BlockDecisionEngine(ReelsDetector())
 
     @Test
+    fun blocksConfiguredAppWhenDailyLimitIsReached() {
+        assertTrue(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    appLimitRules = listOf(appLimitRule(usageMillis = 10 * 60 * 1000L))
+                ),
+                screen = appScreen(packageName = "com.video"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockConfiguredAppBeforeDailyLimit() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    appLimitRules = listOf(appLimitRule(usageMillis = 10 * 60 * 1000L - 1))
+                ),
+                screen = appScreen(packageName = "com.video"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockAppWithoutRule() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    appLimitRules = listOf(appLimitRule(usageMillis = 10 * 60 * 1000L))
+                ),
+                screen = appScreen(packageName = "com.notes"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockConfiguredAppWhenMoreFocusIsDisabled() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = false,
+                    instagramReelsEnabled = true,
+                    appLimitRules = listOf(appLimitRule(usageMillis = 10 * 60 * 1000L))
+                ),
+                screen = appScreen(packageName = "com.video"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockConfiguredAppWhileTemporaryPauseIsActive() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    pauseUntilMillis = 1_300L,
+                    appLimitRules = listOf(appLimitRule(usageMillis = 10 * 60 * 1000L))
+                ),
+                screen = appScreen(packageName = "com.video"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun blocksConfiguredAppWhenLimitIsLoweredBelowCurrentUsage() {
+        assertTrue(
+            engine.shouldBlock(
+                settings = BlockSettings(
+                    focusEnabled = true,
+                    instagramReelsEnabled = true,
+                    appLimitRules = listOf(
+                        appLimitRule(
+                            limitMinutes = 5,
+                            usageMillis = 10 * 60 * 1000L
+                        )
+                    )
+                ),
+                screen = appScreen(packageName = "com.video"),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
     fun blocksInstagramReelsWhenDailyLimitIsReached() {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
@@ -254,6 +350,24 @@ class ReelsBlockerTest {
             packageName = "com.instagram.android",
             className = "com.instagram.mainactivity.InstagramMainActivity",
             root = NodeSnapshot(text = label)
+        )
+
+    private fun appScreen(packageName: String): ScreenSnapshot =
+        ScreenSnapshot(
+            packageName = packageName,
+            className = null,
+            root = null
+        )
+
+    private fun appLimitRule(
+        limitMinutes: Int = 10,
+        usageMillis: Long = 0L
+    ): AppLimitRule =
+        AppLimitRule(
+            packageName = "com.video",
+            appName = "Video",
+            limitMinutes = limitMinutes,
+            usageMillis = usageMillis
         )
 
     private fun settingsAtLimit(): BlockSettings =

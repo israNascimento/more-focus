@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import br.com.morefocus.data.AccessibilityServiceRepository
 import br.com.morefocus.data.AndroidAccessibilityServiceRepository
+import br.com.morefocus.data.AndroidInstalledAppsRepository
+import br.com.morefocus.data.InstalledAppsRepository
 import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
 import br.com.morefocus.settings.MoreFocusPreferences
@@ -20,23 +22,29 @@ class AppContainer(context: Context) {
     val accessibilityServiceRepository: AccessibilityServiceRepository =
         AndroidAccessibilityServiceRepository(applicationContext)
 
+    private val installedAppsRepository: InstalledAppsRepository =
+        AndroidInstalledAppsRepository(applicationContext)
+
     val moreFocusViewModelFactory: ViewModelProvider.Factory =
         MoreFocusViewModelFactory(
             settingsRepository = settingsRepository,
-            accessibilityServiceRepository = accessibilityServiceRepository
+            accessibilityServiceRepository = accessibilityServiceRepository,
+            installedAppsRepository = installedAppsRepository
         )
 }
 
 private class MoreFocusViewModelFactory(
     private val settingsRepository: MoreFocusSettingsRepository,
-    private val accessibilityServiceRepository: AccessibilityServiceRepository
+    private val accessibilityServiceRepository: AccessibilityServiceRepository,
+    private val installedAppsRepository: InstalledAppsRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MoreFocusViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return MoreFocusViewModel(
                 settingsRepository = settingsRepository,
-                accessibilityServiceRepository = accessibilityServiceRepository
+                accessibilityServiceRepository = accessibilityServiceRepository,
+                installedAppsRepository = installedAppsRepository
             ) as T
         }
 

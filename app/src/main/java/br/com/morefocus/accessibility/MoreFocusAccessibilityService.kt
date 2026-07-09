@@ -18,6 +18,8 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import br.com.morefocus.MoreFocusApplication
+import br.com.morefocus.R
+import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockDecisionEngine
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
@@ -36,7 +38,10 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private lateinit var settingsRepository: MoreFocusSettingsRepository
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+    private var overlayMessage: OverlayMessage? = null
     private var reelsSessionStartedAtMillis: Long? = null
+    private var activeLimitedAppPackageName: String? = null
+    private var activeLimitedAppStartedAtMillis: Long? = null
     private var scheduledCheck: Runnable? = null
 
     override val lifecycle: Lifecycle
@@ -62,6 +67,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (overlayView != null) return
         evaluateCurrentScreen(event)
     }
 
@@ -77,27 +83,47 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         )
         val isInstagramReels = reelsDetector.isInstagramReels(screen)
 
+        recordActiveLimitedAppUsage(nowMillis)
         recordActiveReelsUsage(nowMillis)
         val settings = settingsRepository.getBlockSettings(nowMillis)
-        val shouldBlock = decisionEngine.shouldBlock(
+        val blockedAppRule = decisionEngine.blockedAppLimitRule(
+            settings = settings,
+            packageName = screen.packageName,
+            nowMillis = nowMillis
+        )
+
+        if (blockedAppRule != null) {
+            stopActiveSessions()
+            cancelScheduledCheck()
+            showOverlay(
+                appLimitOverlayMessage(
+                    rule = blockedAppRule,
+                    trackReelsOnPause = settings.focusEnabled &&
+                        settings.instagramReelsEnabled &&
+                        isInstagramReels
+                )
+            )
+            return
+        }
+
+        val shouldBlockReels = decisionEngine.shouldBlock(
             settings = settings,
             isInstagramReels = isInstagramReels,
             nowMillis = nowMillis
         )
 
-        if (shouldBlock) {
+        if (shouldBlockReels) {
+            val trackedAppRule = settings.appLimitRuleFor(screen.packageName)
             reelsSessionStartedAtMillis = null
+            activeLimitedAppPackageName = null
+            activeLimitedAppStartedAtMillis = null
             cancelScheduledCheck()
-            showOverlay()
+            showOverlay(reelsOverlayMessage(trackedAppRule))
         } else {
             hideOverlay()
-            if (settings.focusEnabled && settings.instagramReelsEnabled && isInstagramReels) {
-                reelsSessionStartedAtMillis = nowMillis
-                scheduleNextCheck(settings, nowMillis)
-            } else {
-                reelsSessionStartedAtMillis = null
-                cancelScheduledCheck()
-            }
+            updateActiveLimitedAppTracking(settings, screen.packageName, nowMillis)
+            updateActiveReelsTracking(settings, isInstagramReels, nowMillis)
+            scheduleNextCheck(settings, screen.packageName, isInstagramReels, nowMillis)
         }
     }
 
@@ -113,10 +139,12 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         super.onDestroy()
     }
 
-    private fun showOverlay() {
-        if (overlayView != null) return
+    private fun showOverlay(message: OverlayMessage) {
+        if (overlayView != null && overlayMessage == message) return
+        if (overlayView != null) hideOverlay()
 
-        val view = buildOverlayView()
+        overlayMessage = message
+        val view = buildOverlayView(message)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -135,9 +163,10 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val view = overlayView ?: return
         runCatching { windowManager.removeView(view) }
         overlayView = null
+        overlayMessage = null
     }
 
-    private fun buildOverlayView(): View =
+    private fun buildOverlayView(message: OverlayMessage): View =
         ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@MoreFocusAccessibilityService)
             setViewTreeSavedStateRegistryOwner(this@MoreFocusAccessibilityService)
@@ -145,11 +174,19 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             setContent {
                 MoreFocusTheme {
                     FocusOverlay(
+                        title = message.title,
+                        description = message.description,
                         onPauseClick = {
                             val nowMillis = System.currentTimeMillis()
                             settingsRepository.pauseFor(PAUSE_DURATION_MILLIS, nowMillis)
+                            message.packageNameToTrackOnPause?.let { packageName ->
+                                activeLimitedAppPackageName = packageName
+                                activeLimitedAppStartedAtMillis = nowMillis
+                            }
+                            if (message.trackReelsOnPause) {
+                                reelsSessionStartedAtMillis = nowMillis
+                            }
                             hideOverlay()
-                            reelsSessionStartedAtMillis = nowMillis
                             scheduleEvaluation(PAUSE_DURATION_MILLIS)
                         },
                         onExitClick = {
@@ -162,6 +199,36 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             }
         }
 
+    private fun appLimitOverlayMessage(
+        rule: AppLimitRule,
+        trackReelsOnPause: Boolean
+    ): OverlayMessage =
+        OverlayMessage(
+            title = getString(R.string.app_limit_overlay_title),
+            description = getString(R.string.app_limit_overlay_description, rule.appName),
+            packageNameToTrackOnPause = rule.packageName,
+            trackReelsOnPause = trackReelsOnPause
+        )
+
+    private fun reelsOverlayMessage(trackedAppRule: AppLimitRule?): OverlayMessage =
+        OverlayMessage(
+            title = getString(R.string.focus_overlay_title),
+            description = getString(R.string.focus_overlay_description),
+            packageNameToTrackOnPause = trackedAppRule?.packageName,
+            trackReelsOnPause = true
+        )
+
+    private fun recordActiveLimitedAppUsage(nowMillis: Long) {
+        val packageName = activeLimitedAppPackageName ?: return
+        val startedAtMillis = activeLimitedAppStartedAtMillis ?: return
+        settingsRepository.recordDailyAppUsage(
+            packageName = packageName,
+            startedAtMillis = startedAtMillis,
+            endedAtMillis = nowMillis
+        )
+        activeLimitedAppStartedAtMillis = nowMillis
+    }
+
     private fun recordActiveReelsUsage(nowMillis: Long) {
         val startedAtMillis = reelsSessionStartedAtMillis ?: return
         settingsRepository.recordDailyReelsUsage(
@@ -173,23 +240,85 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     private fun stopTracking(nowMillis: Long) {
         if (!::settingsRepository.isInitialized) return
+        recordActiveLimitedAppUsage(nowMillis)
         recordActiveReelsUsage(nowMillis)
-        reelsSessionStartedAtMillis = null
+        stopActiveSessions()
         cancelScheduledCheck()
     }
 
-    private fun scheduleNextCheck(settings: BlockSettings, nowMillis: Long) {
+    private fun stopActiveSessions() {
+        activeLimitedAppPackageName = null
+        activeLimitedAppStartedAtMillis = null
+        reelsSessionStartedAtMillis = null
+    }
+
+    private fun updateActiveLimitedAppTracking(
+        settings: BlockSettings,
+        packageName: String?,
+        nowMillis: Long
+    ) {
+        val rule = settings.appLimitRuleFor(packageName)
+        if (settings.focusEnabled && rule != null) {
+            activeLimitedAppPackageName = rule.packageName
+            activeLimitedAppStartedAtMillis = nowMillis
+        } else {
+            activeLimitedAppPackageName = null
+            activeLimitedAppStartedAtMillis = null
+        }
+    }
+
+    private fun updateActiveReelsTracking(
+        settings: BlockSettings,
+        isInstagramReels: Boolean,
+        nowMillis: Long
+    ) {
+        if (settings.focusEnabled && settings.instagramReelsEnabled && isInstagramReels) {
+            reelsSessionStartedAtMillis = nowMillis
+        } else {
+            reelsSessionStartedAtMillis = null
+        }
+    }
+
+    private fun scheduleNextCheck(
+        settings: BlockSettings,
+        packageName: String?,
+        isInstagramReels: Boolean,
+        nowMillis: Long
+    ) {
+        val isTrackingApp = settings.focusEnabled && settings.appLimitRuleFor(packageName) != null
+        val isTrackingReels = settings.focusEnabled &&
+            settings.instagramReelsEnabled &&
+            isInstagramReels
+
+        if (!isTrackingApp && !isTrackingReels) {
+            cancelScheduledCheck()
+            return
+        }
+
         val pauseDelayMillis = (settings.pauseUntilMillis - nowMillis)
             .takeIf { settings.pauseUntilMillis > nowMillis }
-        val limitDelayMillis = settings.remainingDailyLimitMillis
-            .takeIf { settings.pauseUntilMillis <= nowMillis && it > 0L }
+        val appLimitDelayMillis = settings.appLimitRuleFor(packageName)
+            ?.remainingDailyLimitMillis
+            ?.takeIf { settings.pauseUntilMillis <= nowMillis && it > 0L }
+        val reelsLimitDelayMillis = settings.remainingDailyLimitMillis
+            .takeIf {
+                isTrackingReels &&
+                    settings.pauseUntilMillis <= nowMillis &&
+                    it > 0L
+            }
         val resetDelayMillis = dailyUsageClock.millisUntilNextDay(nowMillis)
             .takeIf { it > 0L }
         val nextDelayMillis = listOfNotNull(
             pauseDelayMillis,
-            limitDelayMillis,
+            appLimitDelayMillis,
+            reelsLimitDelayMillis,
             resetDelayMillis
-        ).minOrNull() ?: return
+        ).minOrNull()
+
+        if (nextDelayMillis == null) {
+            cancelScheduledCheck()
+            return
+        }
 
         scheduleEvaluation(nextDelayMillis)
     }
@@ -211,3 +340,10 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         const val MIN_SCHEDULE_DELAY_MILLIS = 250L
     }
 }
+
+private data class OverlayMessage(
+    val title: String,
+    val description: String,
+    val packageNameToTrackOnPause: String?,
+    val trackReelsOnPause: Boolean
+)

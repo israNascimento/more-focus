@@ -9,13 +9,23 @@ data class BlockSettings(
     val instagramReelsEnabled: Boolean,
     val pauseUntilMillis: Long = 0L,
     val dailyLimitMinutes: Int = 15,
-    val dailyUsageMillis: Long = 0L
+    val dailyUsageMillis: Long = 0L,
+    val appLimitRules: List<AppLimitRule> = emptyList()
 ) {
     val dailyLimitMillis: Long
         get() = dailyLimitMinutes.coerceAtLeast(1) * MILLIS_PER_MINUTE
 
     val remainingDailyLimitMillis: Long
         get() = (dailyLimitMillis - dailyUsageMillis).coerceAtLeast(0L)
+
+    fun appLimitRuleFor(packageName: String?): AppLimitRule? =
+        packageName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { activePackageName ->
+                appLimitRules.firstOrNull { rule ->
+                    rule.enabled && rule.packageName == activePackageName
+                }
+            }
 }
 
 data class ScreenSnapshot(
@@ -41,6 +51,8 @@ class BlockDecisionEngine(
     private val reelsDetector: ReelsDetector
 ) {
     fun shouldBlock(settings: BlockSettings, screen: ScreenSnapshot, nowMillis: Long): Boolean {
+        if (blockedAppLimitRule(settings, screen.packageName, nowMillis) != null) return true
+
         return shouldBlock(
             settings = settings,
             isInstagramReels = reelsDetector.isInstagramReels(screen),
@@ -55,6 +67,18 @@ class BlockDecisionEngine(
         if (!isInstagramReels) return false
 
         return settings.dailyUsageMillis >= settings.dailyLimitMillis
+    }
+
+    fun blockedAppLimitRule(
+        settings: BlockSettings,
+        packageName: String?,
+        nowMillis: Long
+    ): AppLimitRule? {
+        if (!settings.focusEnabled) return null
+        if (settings.pauseUntilMillis > nowMillis) return null
+
+        val rule = settings.appLimitRuleFor(packageName) ?: return null
+        return rule.takeIf { it.usageMillis >= it.limitMillis }
     }
 }
 

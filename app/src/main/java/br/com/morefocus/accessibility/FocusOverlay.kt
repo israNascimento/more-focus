@@ -27,6 +27,8 @@ import br.com.morefocus.ui.theme.MoreFocusTheme
 
 @Composable
 fun FocusOverlay(
+    title: String,
+    description: String,
     onPauseClick: () -> Unit,
     onExitClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -48,13 +50,13 @@ fun FocusOverlay(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.focus_overlay_title),
+                    text = title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = stringResource(R.string.focus_overlay_description),
+                    text = description,
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFF374151)
                 )
@@ -82,6 +84,8 @@ fun FocusOverlay(
 private fun FocusOverlayPreview() {
     MoreFocusTheme {
         FocusOverlay(
+            title = stringResource(R.string.focus_overlay_title),
+            description = stringResource(R.string.focus_overlay_description),
             onPauseClick = {},
             onExitClick = {}
         )
