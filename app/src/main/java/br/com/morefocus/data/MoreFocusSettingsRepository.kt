@@ -3,19 +3,21 @@ package br.com.morefocus.data
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageState
+import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.settings.MoreFocusPreferences
 
 data class MoreFocusSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
-    val dailyReelsLimitMinutes: Int,
+    val exponentialPauseLockEnabled: Boolean = true,
+    val dailyReelsLimitSeconds: Int,
     val appLimitRules: List<AppLimitRule> = emptyList()
 )
 
 interface MoreFocusSettingsRepository {
-    val dailyReelsLimitMinuteOptions: List<Int>
+    val dailyReelsLimitSecondOptions: List<Int>
 
-    val appLimitMinuteOptions: List<Int>
+    val appLimitSecondOptions: List<Int>
 
     fun getSettings(): MoreFocusSettings
 
@@ -25,17 +27,28 @@ interface MoreFocusSettingsRepository {
 
     fun setInstagramReelsEnabled(enabled: Boolean)
 
-    fun setDailyReelsLimitMinutes(limitMinutes: Int)
+    fun setExponentialPauseLockEnabled(enabled: Boolean)
 
-    fun setAppLimit(packageName: String, appName: String, limitMinutes: Int)
+    fun setDailyReelsLimitSeconds(limitSeconds: Int)
 
-    fun setAppLimitMinutes(packageName: String, limitMinutes: Int)
+    fun setAppLimit(packageName: String, appName: String, limitSeconds: Int)
+
+    fun setAppLimitSeconds(packageName: String, limitSeconds: Int)
 
     fun setAppLimitEnabled(packageName: String, enabled: Boolean)
 
     fun removeAppLimit(packageName: String)
 
-    fun pauseFor(durationMillis: Long, nowMillis: Long = System.currentTimeMillis())
+    fun pauseExtensionLockSeconds(
+        target: PauseExtensionTarget,
+        nowMillis: Long = System.currentTimeMillis()
+    ): Int
+
+    fun pauseFor(
+        durationMillis: Long,
+        target: PauseExtensionTarget,
+        nowMillis: Long = System.currentTimeMillis()
+    )
 
     fun recordDailyReelsUsage(startedAtMillis: Long?, endedAtMillis: Long): DailyUsageState
 
@@ -49,17 +62,18 @@ interface MoreFocusSettingsRepository {
 class SharedPreferencesMoreFocusSettingsRepository(
     private val preferences: MoreFocusPreferences
 ) : MoreFocusSettingsRepository {
-    override val dailyReelsLimitMinuteOptions: List<Int> =
-        MoreFocusPreferences.DAILY_REELS_LIMIT_MINUTE_OPTIONS
+    override val dailyReelsLimitSecondOptions: List<Int> =
+        MoreFocusPreferences.DAILY_REELS_LIMIT_SECOND_OPTIONS
 
-    override val appLimitMinuteOptions: List<Int> =
-        MoreFocusPreferences.DAILY_REELS_LIMIT_MINUTE_OPTIONS
+    override val appLimitSecondOptions: List<Int> =
+        MoreFocusPreferences.DAILY_REELS_LIMIT_SECOND_OPTIONS
 
     override fun getSettings(): MoreFocusSettings =
         MoreFocusSettings(
             focusEnabled = preferences.isFocusEnabled(),
             instagramReelsEnabled = preferences.isInstagramReelsEnabled(),
-            dailyReelsLimitMinutes = preferences.dailyReelsLimitMinutes(),
+            exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
+            dailyReelsLimitSeconds = preferences.dailyReelsLimitSeconds(),
             appLimitRules = preferences.appLimitRules()
         )
 
@@ -74,16 +88,20 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.setInstagramReelsEnabled(enabled)
     }
 
-    override fun setDailyReelsLimitMinutes(limitMinutes: Int) {
-        preferences.setDailyReelsLimitMinutes(limitMinutes)
+    override fun setExponentialPauseLockEnabled(enabled: Boolean) {
+        preferences.setExponentialPauseLockEnabled(enabled)
     }
 
-    override fun setAppLimit(packageName: String, appName: String, limitMinutes: Int) {
-        preferences.setAppLimit(packageName, appName, limitMinutes)
+    override fun setDailyReelsLimitSeconds(limitSeconds: Int) {
+        preferences.setDailyReelsLimitSeconds(limitSeconds)
     }
 
-    override fun setAppLimitMinutes(packageName: String, limitMinutes: Int) {
-        preferences.setAppLimitMinutes(packageName, limitMinutes)
+    override fun setAppLimit(packageName: String, appName: String, limitSeconds: Int) {
+        preferences.setAppLimit(packageName, appName, limitSeconds)
+    }
+
+    override fun setAppLimitSeconds(packageName: String, limitSeconds: Int) {
+        preferences.setAppLimitSeconds(packageName, limitSeconds)
     }
 
     override fun setAppLimitEnabled(packageName: String, enabled: Boolean) {
@@ -94,8 +112,17 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.removeAppLimit(packageName)
     }
 
-    override fun pauseFor(durationMillis: Long, nowMillis: Long) {
-        preferences.pauseFor(durationMillis, nowMillis)
+    override fun pauseExtensionLockSeconds(
+        target: PauseExtensionTarget,
+        nowMillis: Long
+    ): Int = preferences.pauseExtensionLockSeconds(target, nowMillis)
+
+    override fun pauseFor(
+        durationMillis: Long,
+        target: PauseExtensionTarget,
+        nowMillis: Long
+    ) {
+        preferences.pauseFor(durationMillis, target, nowMillis)
     }
 
     override fun recordDailyReelsUsage(

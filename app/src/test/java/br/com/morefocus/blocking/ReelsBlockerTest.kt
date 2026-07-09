@@ -92,7 +92,7 @@ class ReelsBlockerTest {
                     instagramReelsEnabled = true,
                     appLimitRules = listOf(
                         appLimitRule(
-                            limitMinutes = 5,
+                            limitSeconds = 5 * 60,
                             usageMillis = 10 * 60 * 1000L
                         )
                     )
@@ -134,7 +134,7 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    dailyLimitMinutes = 15,
+                    dailyLimitSeconds = 15 * 60,
                     dailyUsageMillis = 15 * 60 * 1000L - 1
                 ),
                 screen = explicitReelsScreen(),
@@ -326,7 +326,7 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    dailyLimitMinutes = 5,
+                    dailyLimitSeconds = 5 * 60,
                     dailyUsageMillis = 10 * 60 * 1000L
                 ),
                 screen = explicitReelsScreen(),
@@ -360,13 +360,13 @@ class ReelsBlockerTest {
         )
 
     private fun appLimitRule(
-        limitMinutes: Int = 10,
+        limitSeconds: Int = 10 * 60,
         usageMillis: Long = 0L
     ): AppLimitRule =
         AppLimitRule(
             packageName = "com.video",
             appName = "Video",
-            limitMinutes = limitMinutes,
+            limitSeconds = limitSeconds,
             usageMillis = usageMillis
         )
 
@@ -374,7 +374,7 @@ class ReelsBlockerTest {
         BlockSettings(
             focusEnabled = true,
             instagramReelsEnabled = true,
-            dailyLimitMinutes = 15,
+            dailyLimitSeconds = 15 * 60,
             dailyUsageMillis = 15 * 60 * 1000L
         )
 }

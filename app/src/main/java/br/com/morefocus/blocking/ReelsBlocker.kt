@@ -2,18 +2,18 @@ package br.com.morefocus.blocking
 
 import android.util.Log
 
-private const val MILLIS_PER_MINUTE = 60 * 1000L
+private const val MILLIS_PER_SECOND = 1000L
 
 data class BlockSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
     val pauseUntilMillis: Long = 0L,
-    val dailyLimitMinutes: Int = 15,
+    val dailyLimitSeconds: Int = 15 * 60,
     val dailyUsageMillis: Long = 0L,
     val appLimitRules: List<AppLimitRule> = emptyList()
 ) {
     val dailyLimitMillis: Long
-        get() = dailyLimitMinutes.coerceAtLeast(1) * MILLIS_PER_MINUTE
+        get() = dailyLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
 
     val remainingDailyLimitMillis: Long
         get() = (dailyLimitMillis - dailyUsageMillis).coerceAtLeast(0L)

@@ -101,9 +101,10 @@ private fun MoreFocusApp(
         uiState = uiState,
         onFocusEnabledChange = viewModel::setFocusEnabled,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
-        onDailyReelsLimitMinutesChange = viewModel::setDailyReelsLimitMinutes,
+        onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
+        onDailyReelsLimitSecondsChange = viewModel::setDailyReelsLimitSeconds,
         onAddAppLimit = viewModel::addAppLimit,
-        onAppLimitMinutesChange = viewModel::setAppLimitMinutes,
+        onAppLimitSecondsChange = viewModel::setAppLimitSeconds,
         onAppLimitEnabledChange = viewModel::setAppLimitEnabled,
         onRemoveAppLimit = viewModel::removeAppLimit,
         onOpenAccessibilitySettings = onOpenAccessibilitySettings
@@ -123,9 +124,10 @@ private fun MoreFocusScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitMinutesChange: (Int) -> Unit,
+    onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
+    onDailyReelsLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
-    onAppLimitMinutesChange: (String, Int) -> Unit,
+    onAppLimitSecondsChange: (String, Int) -> Unit,
     onAppLimitEnabledChange: (String, Boolean) -> Unit,
     onRemoveAppLimit: (String) -> Unit,
     onOpenAccessibilitySettings: () -> Unit
@@ -189,9 +191,11 @@ private fun MoreFocusScreen(
                             uiState = uiState,
                             onFocusEnabledChange = onFocusEnabledChange,
                             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
-                            onDailyReelsLimitMinutesChange = onDailyReelsLimitMinutesChange,
+                            onExponentialPauseLockEnabledChange =
+                                onExponentialPauseLockEnabledChange,
+                            onDailyReelsLimitSecondsChange = onDailyReelsLimitSecondsChange,
                             onAddAppLimit = onAddAppLimit,
-                            onAppLimitMinutesChange = onAppLimitMinutesChange,
+                            onAppLimitSecondsChange = onAppLimitSecondsChange,
                             onAppLimitEnabledChange = onAppLimitEnabledChange,
                             onRemoveAppLimit = onRemoveAppLimit,
                             onOpenAccessibilitySettings = onOpenAccessibilitySettings
@@ -208,9 +212,10 @@ private fun PreferencesScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitMinutesChange: (Int) -> Unit,
+    onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
+    onDailyReelsLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
-    onAppLimitMinutesChange: (String, Int) -> Unit,
+    onAppLimitSecondsChange: (String, Int) -> Unit,
     onAppLimitEnabledChange: (String, Boolean) -> Unit,
     onRemoveAppLimit: (String) -> Unit,
     onOpenAccessibilitySettings: () -> Unit
@@ -233,16 +238,18 @@ private fun PreferencesScreen(
         PreferenceCard(
             focusEnabled = uiState.focusEnabled,
             instagramReelsEnabled = uiState.instagramReelsEnabled,
-            dailyReelsLimitMinutes = uiState.dailyReelsLimitMinutes,
-            dailyReelsLimitMinuteOptions = uiState.dailyReelsLimitMinuteOptions,
+            exponentialPauseLockEnabled = uiState.exponentialPauseLockEnabled,
+            dailyReelsLimitSeconds = uiState.dailyReelsLimitSeconds,
+            dailyReelsLimitSecondOptions = uiState.dailyReelsLimitSecondOptions,
             onFocusEnabledChange = onFocusEnabledChange,
             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
-            onDailyReelsLimitMinutesChange = onDailyReelsLimitMinutesChange,
+            onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
+            onDailyReelsLimitSecondsChange = onDailyReelsLimitSecondsChange,
             appLimitRules = uiState.appLimitRules,
             selectableApps = uiState.selectableApps,
-            appLimitMinuteOptions = uiState.appLimitMinuteOptions,
+            appLimitSecondOptions = uiState.appLimitSecondOptions,
             onAddAppLimit = onAddAppLimit,
-            onAppLimitMinutesChange = onAppLimitMinutesChange,
+            onAppLimitSecondsChange = onAppLimitSecondsChange,
             onAppLimitEnabledChange = onAppLimitEnabledChange,
             onRemoveAppLimit = onRemoveAppLimit
         )
@@ -275,7 +282,7 @@ private fun UsageScreen(uiState: MoreFocusUiState) {
         UsageSummaryCard(
             title = stringResource(R.string.usage_reels_title),
             usedMillis = uiState.dailyReelsUsageMillis,
-            limitMillis = uiState.dailyReelsLimitMinutes.toLimitMillis(),
+            limitMillis = uiState.dailyReelsLimitSeconds.toLimitMillis(),
             enabled = uiState.instagramReelsEnabled
         )
 
@@ -335,8 +342,8 @@ private fun UsageSummaryCard(
                 Text(
                     text = stringResource(
                         R.string.usage_time,
-                        usedMillis.toWholeMinutes(),
-                        limitMillis.toWholeMinutes()
+                        durationLabel(usedMillis),
+                        durationLabel(limitMillis)
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -378,7 +385,7 @@ private fun UsageCircularProgress(
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
         Text(
-            text = stringResource(R.string.usage_progress_minutes, usedMillis.toWholeMinutes()),
+            text = durationLabel(usedMillis),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
@@ -473,16 +480,18 @@ private fun DisclosureCard() {
 private fun PreferenceCard(
     focusEnabled: Boolean,
     instagramReelsEnabled: Boolean,
-    dailyReelsLimitMinutes: Int,
-    dailyReelsLimitMinuteOptions: List<Int>,
+    exponentialPauseLockEnabled: Boolean,
+    dailyReelsLimitSeconds: Int,
+    dailyReelsLimitSecondOptions: List<Int>,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitMinutesChange: (Int) -> Unit,
+    onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
+    onDailyReelsLimitSecondsChange: (Int) -> Unit,
     appLimitRules: List<AppLimitRule>,
     selectableApps: List<SelectableApp>,
-    appLimitMinuteOptions: List<Int>,
+    appLimitSecondOptions: List<Int>,
     onAddAppLimit: (String, Int) -> Unit,
-    onAppLimitMinutesChange: (String, Int) -> Unit,
+    onAppLimitSecondsChange: (String, Int) -> Unit,
     onAppLimitEnabledChange: (String, Boolean) -> Unit,
     onRemoveAppLimit: (String) -> Unit
 ) {
@@ -501,22 +510,30 @@ private fun PreferenceCard(
                 onCheckedChange = onFocusEnabledChange
             )
             ToggleRow(
+                title = stringResource(R.string.preference_exponential_pause_lock_title),
+                description = stringResource(
+                    R.string.preference_exponential_pause_lock_description
+                ),
+                checked = exponentialPauseLockEnabled,
+                onCheckedChange = onExponentialPauseLockEnabledChange
+            )
+            ToggleRow(
                 title = stringResource(R.string.preference_instagram_reels_enabled_title),
                 description = stringResource(R.string.preference_instagram_reels_enabled_description),
                 checked = instagramReelsEnabled,
                 onCheckedChange = onInstagramReelsEnabledChange
             )
             DailyLimitSelector(
-                selectedLimitMinutes = dailyReelsLimitMinutes,
-                limitOptions = dailyReelsLimitMinuteOptions,
-                onLimitSelected = onDailyReelsLimitMinutesChange
+                selectedLimitSeconds = dailyReelsLimitSeconds,
+                limitOptions = dailyReelsLimitSecondOptions,
+                onLimitSelected = onDailyReelsLimitSecondsChange
             )
             AppLimitSection(
                 appLimitRules = appLimitRules,
                 selectableApps = selectableApps,
-                limitOptions = appLimitMinuteOptions,
+                limitOptions = appLimitSecondOptions,
                 onAddAppLimit = onAddAppLimit,
-                onLimitSelected = onAppLimitMinutesChange,
+                onLimitSelected = onAppLimitSecondsChange,
                 onEnabledChange = onAppLimitEnabledChange,
                 onRemove = onRemoveAppLimit
             )
@@ -526,7 +543,7 @@ private fun PreferenceCard(
 
 @Composable
 private fun DailyLimitSelector(
-    selectedLimitMinutes: Int,
+    selectedLimitSeconds: Int,
     limitOptions: List<Int>,
     onLimitSelected: (Int) -> Unit
 ) {
@@ -552,18 +569,13 @@ private fun DailyLimitSelector(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    rowOptions.forEach { limitMinutes ->
+                    rowOptions.forEach { limitSeconds ->
                         FilterChip(
                             modifier = Modifier.weight(1f),
-                            selected = selectedLimitMinutes == limitMinutes,
-                            onClick = { onLimitSelected(limitMinutes) },
+                            selected = selectedLimitSeconds == limitSeconds,
+                            onClick = { onLimitSelected(limitSeconds) },
                             label = {
-                                Text(
-                                    text = stringResource(
-                                        R.string.daily_reels_limit_option_minutes,
-                                        limitMinutes
-                                    )
-                                )
+                                Text(text = limitOptionLabel(limitSeconds))
                             }
                         )
                     }
@@ -648,8 +660,8 @@ private fun AppLimitSection(
             availableApps = availableApps,
             limitOptions = limitOptions,
             onDismiss = { showAddDialog = false },
-            onAddAppLimit = { packageName, limitMinutes ->
-                onAddAppLimit(packageName, limitMinutes)
+            onAddAppLimit = { packageName, limitSeconds ->
+                onAddAppLimit(packageName, limitSeconds)
                 showAddDialog = false
             }
         )
@@ -682,8 +694,8 @@ private fun AppLimitRuleRow(
                 Text(
                     text = stringResource(
                         R.string.app_limits_usage,
-                        rule.usageMillis.toWholeMinutes(),
-                        rule.limitMinutes
+                        durationLabel(rule.usageMillis),
+                        durationLabel(rule.limitMillis)
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -696,11 +708,11 @@ private fun AppLimitRuleRow(
         }
 
         LimitOptionChips(
-            selectedLimitMinutes = rule.limitMinutes,
+            selectedLimitSeconds = rule.limitSeconds,
             limitOptions = limitOptions,
             enabled = rule.enabled,
-            onLimitSelected = { limitMinutes ->
-                onLimitSelected(rule.packageName, limitMinutes)
+            onLimitSelected = { limitSeconds ->
+                onLimitSelected(rule.packageName, limitSeconds)
             }
         )
 
@@ -721,8 +733,8 @@ private fun AddAppLimitDialog(
     var selectedPackageName by remember(availableApps) {
         mutableStateOf(availableApps.firstOrNull()?.packageName.orEmpty())
     }
-    var selectedLimitMinutes by remember(limitOptions) {
-        mutableStateOf(limitOptions.firstOrNull() ?: 15)
+    var selectedLimitSeconds by remember(limitOptions) {
+        mutableStateOf(limitOptions.firstOrNull() ?: 15 * 60)
     }
     val selectedApp = availableApps.firstOrNull { it.packageName == selectedPackageName }
         ?: availableApps.firstOrNull()
@@ -765,10 +777,10 @@ private fun AddAppLimitDialog(
                     }
                 }
                 LimitOptionChips(
-                    selectedLimitMinutes = selectedLimitMinutes,
+                    selectedLimitSeconds = selectedLimitSeconds,
                     limitOptions = limitOptions,
                     enabled = selectedApp != null,
-                    onLimitSelected = { selectedLimitMinutes = it }
+                    onLimitSelected = { selectedLimitSeconds = it }
                 )
             }
         },
@@ -777,7 +789,7 @@ private fun AddAppLimitDialog(
                 enabled = selectedApp != null,
                 onClick = {
                     selectedApp?.let { app ->
-                        onAddAppLimit(app.packageName, selectedLimitMinutes)
+                        onAddAppLimit(app.packageName, selectedLimitSeconds)
                     }
                 }
             ) {
@@ -794,7 +806,7 @@ private fun AddAppLimitDialog(
 
 @Composable
 private fun LimitOptionChips(
-    selectedLimitMinutes: Int,
+    selectedLimitSeconds: Int,
     limitOptions: List<Int>,
     enabled: Boolean = true,
     onLimitSelected: (Int) -> Unit
@@ -805,19 +817,14 @@ private fun LimitOptionChips(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                rowOptions.forEach { limitMinutes ->
+                rowOptions.forEach { limitSeconds ->
                     FilterChip(
                         modifier = Modifier.weight(1f),
-                        selected = selectedLimitMinutes == limitMinutes,
+                        selected = selectedLimitSeconds == limitSeconds,
                         enabled = enabled,
-                        onClick = { onLimitSelected(limitMinutes) },
+                        onClick = { onLimitSelected(limitSeconds) },
                         label = {
-                            Text(
-                                text = stringResource(
-                                    R.string.daily_reels_limit_option_minutes,
-                                    limitMinutes
-                                )
-                            )
+                            Text(text = limitOptionLabel(limitSeconds))
                         }
                     )
                 }
@@ -871,13 +878,29 @@ private fun Context.openAccessibilitySettings() {
     }
 }
 
-private const val MILLIS_PER_MINUTE = 60 * 1000L
+private const val MILLIS_PER_SECOND = 1000L
+private const val SECONDS_PER_MINUTE = 60
 
 private fun Int.toLimitMillis(): Long =
-    coerceAtLeast(1).toLong() * MILLIS_PER_MINUTE
+    coerceAtLeast(1).toLong() * MILLIS_PER_SECOND
 
-private fun Long.toWholeMinutes(): Int =
-    (this / MILLIS_PER_MINUTE).toInt()
+@Composable
+private fun durationLabel(durationMillis: Long): String {
+    val durationSeconds = (durationMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND).toInt()
+    return if (durationSeconds < SECONDS_PER_MINUTE) {
+        stringResource(R.string.duration_seconds, durationSeconds)
+    } else {
+        stringResource(R.string.duration_minutes, durationSeconds / SECONDS_PER_MINUTE)
+    }
+}
+
+@Composable
+private fun limitOptionLabel(limitSeconds: Int): String =
+    if (limitSeconds < SECONDS_PER_MINUTE) {
+        stringResource(R.string.duration_seconds, limitSeconds)
+    } else {
+        stringResource(R.string.duration_minutes, limitSeconds / SECONDS_PER_MINUTE)
+    }
 
 @Preview(showBackground = true)
 @Composable
@@ -888,20 +911,28 @@ private fun MoreFocusScreenPreview() {
                 serviceEnabled = false,
                 focusEnabled = true,
                 instagramReelsEnabled = true,
-                dailyReelsLimitMinutes = 15,
+                exponentialPauseLockEnabled = true,
+                dailyReelsLimitSeconds = 15 * 60,
                 dailyReelsUsageMillis = 7 * 60 * 1000L,
-                dailyReelsLimitMinuteOptions = listOf(5, 10, 15, 30, 60),
+                dailyReelsLimitSecondOptions = listOf(
+                    30,
+                    5 * 60,
+                    10 * 60,
+                    15 * 60,
+                    30 * 60,
+                    60 * 60
+                ),
                 appLimitRules = listOf(
                     AppLimitRule(
                         packageName = "com.instagram.android",
                         appName = "Instagram",
-                        limitMinutes = 30,
+                        limitSeconds = 30 * 60,
                         usageMillis = 12 * 60 * 1000L
                     ),
                     AppLimitRule(
                         packageName = "com.youtube.android",
                         appName = "YouTube",
-                        limitMinutes = 15,
+                        limitSeconds = 15 * 60,
                         usageMillis = 18 * 60 * 1000L
                     )
                 ),
@@ -909,13 +940,21 @@ private fun MoreFocusScreenPreview() {
                     SelectableApp("com.tiktok", "TikTok"),
                     SelectableApp("com.youtube", "YouTube")
                 ),
-                appLimitMinuteOptions = listOf(5, 10, 15, 30, 60)
+                appLimitSecondOptions = listOf(
+                    30,
+                    5 * 60,
+                    10 * 60,
+                    15 * 60,
+                    30 * 60,
+                    60 * 60
+                )
             ),
             onFocusEnabledChange = {},
             onInstagramReelsEnabledChange = {},
-            onDailyReelsLimitMinutesChange = {},
+            onExponentialPauseLockEnabledChange = {},
+            onDailyReelsLimitSecondsChange = {},
             onAddAppLimit = { _, _ -> },
-            onAppLimitMinutesChange = { _, _ -> },
+            onAppLimitSecondsChange = { _, _ -> },
             onAppLimitEnabledChange = { _, _ -> },
             onRemoveAppLimit = {},
             onOpenAccessibilitySettings = {}

@@ -15,8 +15,7 @@
     <string name="usage_reels_title">Instagram Reels</string>
     <string name="usage_apps_title">Aplicativos</string>
     <string name="usage_apps_empty">Nenhum limite por aplicativo configurado.</string>
-    <string name="usage_time">Usado hoje: %1$d de %2$d min</string>
-    <string name="usage_progress_minutes">%1$d min</string>
+    <string name="usage_time">Usado hoje: %1$s de %2$s</string>
     <string name="usage_limit_reached">Limite atingido</string>
     <string name="usage_rule_disabled">Regra desativada</string>
     <string name="accessibility_disclosure_title">Uso da acessibilidade</string>
@@ -26,9 +25,12 @@
     <string name="preference_focus_enabled_description">Permite aplicar as regras selecionadas.</string>
     <string name="preference_instagram_reels_enabled_title">Bloquear Instagram Reels</string>
     <string name="preference_instagram_reels_enabled_description">Mostra um aviso quando o limite diário de Reels for atingido.</string>
+    <string name="preference_exponential_pause_lock_title">Bloqueio exponencial do +1 minuto</string>
+    <string name="preference_exponential_pause_lock_description">Aumenta a espera para 3s, 9s, 27s e até 60s a cada uso, separadamente para Reels e cada aplicativo.</string>
     <string name="daily_reels_limit_title">Limite diário de Reels</string>
     <string name="daily_reels_limit_description">O aviso aparece quando esse tempo diário for atingido.</string>
-    <string name="daily_reels_limit_option_minutes">%1$d min</string>
+    <string name="duration_seconds">%1$ds</string>
+    <string name="duration_minutes">%1$d min</string>
     <string name="app_limits_title">Limites por aplicativo</string>
     <string name="app_limits_description">Escolha aplicativos e um tempo máximo diário para cada um.</string>
     <string name="app_limits_empty">Nenhum limite por aplicativo configurado.</string>
@@ -37,12 +39,13 @@
     <string name="app_limits_choose_app">Aplicativo</string>
     <string name="app_limits_no_apps">Nenhum aplicativo disponível</string>
     <string name="app_limits_no_available_apps">Todos os aplicativos disponíveis já têm limite.</string>
-    <string name="app_limits_usage">Usado hoje: %1$d de %2$d min</string>
+    <string name="app_limits_usage">Usado hoje: %1$s de %2$s</string>
     <string name="app_limits_remove">Remover</string>
     <string name="focus_overlay_title">Reels bloqueado</string>
     <string name="focus_overlay_description">Você atingiu seu limite diário de Instagram Reels.</string>
     <string name="app_limit_overlay_title">Limite diário atingido</string>
     <string name="app_limit_overlay_description">Você atingiu seu limite diário para %1$s.</string>
-    <string name="focus_overlay_ignore_minutes">Ignorar %1$d min</string>
+    <string name="focus_overlay_add_minute">+1 minuto</string>
+    <string name="focus_overlay_add_minute_locked">+1 minuto (%1$ds)</string>
     <string name="focus_overlay_exit">Sair</string>
 </resources>

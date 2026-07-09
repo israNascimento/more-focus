@@ -6,6 +6,8 @@ import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.DailyUsageState
+import br.com.morefocus.blocking.ExponentialPauseLockPolicy
+import br.com.morefocus.blocking.PauseExtensionTarget
 
 class MoreFocusPreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -20,7 +22,7 @@ class MoreFocusPreferences(context: Context) {
             focusEnabled = preferences.getBoolean(KEY_FOCUS_ENABLED, true),
             instagramReelsEnabled = preferences.getBoolean(KEY_INSTAGRAM_REELS_ENABLED, true),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
-            dailyLimitMinutes = dailyReelsLimitMinutes(),
+            dailyLimitSeconds = dailyReelsLimitSeconds(),
             dailyUsageMillis = dailyUsageState.usedMillis,
             appLimitRules = appLimitRules(nowMillis)
         )
@@ -40,18 +42,34 @@ class MoreFocusPreferences(context: Context) {
         preferences.edit { putBoolean(KEY_INSTAGRAM_REELS_ENABLED, enabled) }
     }
 
-    fun dailyReelsLimitMinutes(): Int {
-        val storedLimit = preferences.getInt(
+    fun isExponentialPauseLockEnabled(): Boolean =
+        preferences.getBoolean(KEY_EXPONENTIAL_PAUSE_LOCK_ENABLED, true)
+
+    fun setExponentialPauseLockEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_EXPONENTIAL_PAUSE_LOCK_ENABLED, enabled) }
+    }
+
+    fun dailyReelsLimitSeconds(): Int {
+        if (preferences.contains(KEY_DAILY_REELS_LIMIT_SECONDS)) {
+            return sanitizedLimitSeconds(
+                preferences.getInt(
+                    KEY_DAILY_REELS_LIMIT_SECONDS,
+                    DEFAULT_DAILY_REELS_LIMIT_SECONDS
+                )
+            )
+        }
+
+        val legacyMinutes = preferences.getInt(
             KEY_DAILY_REELS_LIMIT_MINUTES,
             DEFAULT_DAILY_REELS_LIMIT_MINUTES
         )
-        return storedLimit.takeIf { it in DAILY_REELS_LIMIT_MINUTE_OPTIONS }
-            ?: DEFAULT_DAILY_REELS_LIMIT_MINUTES
+        return sanitizedLimitSeconds(legacyMinutes * SECONDS_PER_MINUTE)
     }
 
-    fun setDailyReelsLimitMinutes(limitMinutes: Int) {
-        val sanitizedLimit = sanitizedLimitMinutes(limitMinutes)
-        preferences.edit { putInt(KEY_DAILY_REELS_LIMIT_MINUTES, sanitizedLimit) }
+    fun setDailyReelsLimitSeconds(limitSeconds: Int) {
+        preferences.edit {
+            putInt(KEY_DAILY_REELS_LIMIT_SECONDS, sanitizedLimitSeconds(limitSeconds))
+        }
     }
 
     fun appLimitRules(nowMillis: Long = System.currentTimeMillis()): List<AppLimitRule> =
@@ -63,7 +81,7 @@ class MoreFocusPreferences(context: Context) {
                     appName = preferences.getString(appNameKey(packageName), null)
                         ?.takeIf { it.isNotBlank() }
                         ?: packageName,
-                    limitMinutes = appLimitMinutes(packageName),
+                    limitSeconds = appLimitSeconds(packageName),
                     usageMillis = usageState.usedMillis,
                     enabled = preferences.getBoolean(appEnabledKey(packageName), true)
                 )
@@ -73,26 +91,28 @@ class MoreFocusPreferences(context: Context) {
                     .thenBy { it.packageName }
             )
 
-    fun setAppLimit(packageName: String, appName: String, limitMinutes: Int) {
+    fun setAppLimit(packageName: String, appName: String, limitSeconds: Int) {
         val sanitizedPackageName = packageName.trim().takeIf { it.isNotBlank() } ?: return
         val sanitizedAppName = appName.trim().takeIf { it.isNotBlank() } ?: sanitizedPackageName
-        val sanitizedLimit = sanitizedLimitMinutes(limitMinutes)
+        val sanitizedLimit = sanitizedLimitSeconds(limitSeconds)
         val packages = appLimitPackages() + sanitizedPackageName
 
         preferences.edit {
             putStringSet(KEY_APP_LIMIT_PACKAGES, packages)
             putString(appNameKey(sanitizedPackageName), sanitizedAppName)
-            putInt(appLimitMinutesKey(sanitizedPackageName), sanitizedLimit)
+            putInt(appLimitSecondsKey(sanitizedPackageName), sanitizedLimit)
+            remove(appLimitMinutesKey(sanitizedPackageName))
             putBoolean(appEnabledKey(sanitizedPackageName), true)
         }
     }
 
-    fun setAppLimitMinutes(packageName: String, limitMinutes: Int) {
+    fun setAppLimitSeconds(packageName: String, limitSeconds: Int) {
         val sanitizedPackageName = packageName.trim().takeIf { it.isNotBlank() } ?: return
         if (sanitizedPackageName !in appLimitPackages()) return
 
         preferences.edit {
-            putInt(appLimitMinutesKey(sanitizedPackageName), sanitizedLimitMinutes(limitMinutes))
+            putInt(appLimitSecondsKey(sanitizedPackageName), sanitizedLimitSeconds(limitSeconds))
+            remove(appLimitMinutesKey(sanitizedPackageName))
         }
     }
 
@@ -113,15 +133,44 @@ class MoreFocusPreferences(context: Context) {
             putStringSet(KEY_APP_LIMIT_PACKAGES, packages)
             remove(appNameKey(sanitizedPackageName))
             remove(appLimitMinutesKey(sanitizedPackageName))
+            remove(appLimitSecondsKey(sanitizedPackageName))
             remove(appEnabledKey(sanitizedPackageName))
             remove(appUsageDayKey(sanitizedPackageName))
             remove(appUsageMillisKey(sanitizedPackageName))
+            remove(pauseExtensionDayKey(PauseExtensionTarget.App(sanitizedPackageName)))
+            remove(pauseExtensionCountKey(PauseExtensionTarget.App(sanitizedPackageName)))
         }
     }
 
-    fun pauseFor(durationMillis: Long, nowMillis: Long = System.currentTimeMillis()) {
+    fun pauseExtensionLockSeconds(
+        target: PauseExtensionTarget,
+        nowMillis: Long = System.currentTimeMillis()
+    ): Int {
+        if (!isExponentialPauseLockEnabled()) return 0
+
+        return ExponentialPauseLockPolicy.lockSeconds(
+            pauseExtensionCount(target, nowMillis)
+        )
+    }
+
+    fun pauseFor(
+        durationMillis: Long,
+        target: PauseExtensionTarget,
+        nowMillis: Long = System.currentTimeMillis()
+    ) {
+        val shouldIncrementExtensionCount = isExponentialPauseLockEnabled()
+        val nextExtensionCount = if (shouldIncrementExtensionCount) {
+            ExponentialPauseLockPolicy.increment(pauseExtensionCount(target, nowMillis))
+        } else {
+            0
+        }
+
         preferences.edit {
             putLong(KEY_PAUSE_UNTIL_MILLIS, nowMillis + durationMillis)
+            if (shouldIncrementExtensionCount) {
+                putString(pauseExtensionDayKey(target), dailyUsageClock.dayKey(nowMillis))
+                putInt(pauseExtensionCountKey(target), nextExtensionCount)
+            }
         }
     }
 
@@ -190,17 +239,26 @@ class MoreFocusPreferences(context: Context) {
             .filter { it.isNotBlank() }
             .toSet()
 
-    private fun appLimitMinutes(packageName: String): Int {
-        val storedLimit = preferences.getInt(
+    private fun appLimitSeconds(packageName: String): Int {
+        if (preferences.contains(appLimitSecondsKey(packageName))) {
+            return sanitizedLimitSeconds(
+                preferences.getInt(
+                    appLimitSecondsKey(packageName),
+                    DEFAULT_DAILY_REELS_LIMIT_SECONDS
+                )
+            )
+        }
+
+        val legacyMinutes = preferences.getInt(
             appLimitMinutesKey(packageName),
             DEFAULT_DAILY_REELS_LIMIT_MINUTES
         )
-        return sanitizedLimitMinutes(storedLimit)
+        return sanitizedLimitSeconds(legacyMinutes * SECONDS_PER_MINUTE)
     }
 
-    private fun sanitizedLimitMinutes(limitMinutes: Int): Int =
-        limitMinutes.takeIf { it in DAILY_REELS_LIMIT_MINUTE_OPTIONS }
-            ?: DEFAULT_DAILY_REELS_LIMIT_MINUTES
+    private fun sanitizedLimitSeconds(limitSeconds: Int): Int =
+        limitSeconds.takeIf { it in DAILY_REELS_LIMIT_SECOND_OPTIONS }
+            ?: DEFAULT_DAILY_REELS_LIMIT_SECONDS
 
     private fun storedDailyAppUsageState(packageName: String): DailyUsageState =
         DailyUsageState(
@@ -215,11 +273,22 @@ class MoreFocusPreferences(context: Context) {
         }
     }
 
+    private fun pauseExtensionCount(target: PauseExtensionTarget, nowMillis: Long): Int {
+        val storedDayKey = preferences.getString(pauseExtensionDayKey(target), null)
+        if (storedDayKey != dailyUsageClock.dayKey(nowMillis)) return 0
+
+        return preferences.getInt(pauseExtensionCountKey(target), 0)
+            .coerceIn(0, ExponentialPauseLockPolicy.MAX_EXTENSION_COUNT)
+    }
+
     private fun appNameKey(packageName: String): String =
         "$KEY_APP_LIMIT_APP_NAME_PREFIX$packageName"
 
     private fun appLimitMinutesKey(packageName: String): String =
         "$KEY_APP_LIMIT_MINUTES_PREFIX$packageName"
+
+    private fun appLimitSecondsKey(packageName: String): String =
+        "$KEY_APP_LIMIT_SECONDS_PREFIX$packageName"
 
     private fun appEnabledKey(packageName: String): String =
         "$KEY_APP_LIMIT_ENABLED_PREFIX$packageName"
@@ -230,22 +299,48 @@ class MoreFocusPreferences(context: Context) {
     private fun appUsageMillisKey(packageName: String): String =
         "$KEY_APP_LIMIT_USAGE_MILLIS_PREFIX$packageName"
 
+    private fun pauseExtensionDayKey(target: PauseExtensionTarget): String =
+        "$KEY_PAUSE_EXTENSION_DAY_PREFIX${target.preferenceKey()}"
+
+    private fun pauseExtensionCountKey(target: PauseExtensionTarget): String =
+        "$KEY_PAUSE_EXTENSION_COUNT_PREFIX${target.preferenceKey()}"
+
+    private fun PauseExtensionTarget.preferenceKey(): String = when (this) {
+        PauseExtensionTarget.InstagramReels -> "instagram_reels"
+        is PauseExtensionTarget.App -> "app_$packageName"
+    }
+
     companion object {
-        val DAILY_REELS_LIMIT_MINUTE_OPTIONS = listOf(5, 10, 15, 30, 60)
-        const val DEFAULT_DAILY_REELS_LIMIT_MINUTES = 15
+        val DAILY_REELS_LIMIT_SECOND_OPTIONS = listOf(
+            30,
+            5 * 60,
+            10 * 60,
+            15 * 60,
+            30 * 60,
+            60 * 60
+        )
+        const val DEFAULT_DAILY_REELS_LIMIT_SECONDS = 15 * 60
+        private const val DEFAULT_DAILY_REELS_LIMIT_MINUTES = 15
+        private const val SECONDS_PER_MINUTE = 60
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
         private const val KEY_INSTAGRAM_REELS_ENABLED = "instagram_reels_enabled"
+        private const val KEY_EXPONENTIAL_PAUSE_LOCK_ENABLED =
+            "exponential_pause_lock_enabled"
         private const val KEY_PAUSE_UNTIL_MILLIS = "pause_until_millis"
+        private const val KEY_DAILY_REELS_LIMIT_SECONDS = "daily_reels_limit_seconds"
         private const val KEY_DAILY_REELS_LIMIT_MINUTES = "daily_reels_limit_minutes"
         private const val KEY_DAILY_REELS_USAGE_DAY = "daily_reels_usage_day"
         private const val KEY_DAILY_REELS_USAGE_MILLIS = "daily_reels_usage_millis"
         private const val KEY_APP_LIMIT_PACKAGES = "app_limit_packages"
         private const val KEY_APP_LIMIT_APP_NAME_PREFIX = "app_limit_app_name_"
         private const val KEY_APP_LIMIT_MINUTES_PREFIX = "app_limit_minutes_"
+        private const val KEY_APP_LIMIT_SECONDS_PREFIX = "app_limit_seconds_"
         private const val KEY_APP_LIMIT_ENABLED_PREFIX = "app_limit_enabled_"
         private const val KEY_APP_LIMIT_USAGE_DAY_PREFIX = "app_limit_usage_day_"
         private const val KEY_APP_LIMIT_USAGE_MILLIS_PREFIX = "app_limit_usage_millis_"
+        private const val KEY_PAUSE_EXTENSION_DAY_PREFIX = "pause_extension_day_"
+        private const val KEY_PAUSE_EXTENSION_COUNT_PREFIX = "pause_extension_count_"
     }
 }

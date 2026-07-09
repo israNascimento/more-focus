@@ -14,12 +14,13 @@ data class MoreFocusUiState(
     val serviceEnabled: Boolean = false,
     val focusEnabled: Boolean = true,
     val instagramReelsEnabled: Boolean = true,
-    val dailyReelsLimitMinutes: Int = 15,
+    val exponentialPauseLockEnabled: Boolean = true,
+    val dailyReelsLimitSeconds: Int = 15 * 60,
     val dailyReelsUsageMillis: Long = 0L,
-    val dailyReelsLimitMinuteOptions: List<Int> = emptyList(),
+    val dailyReelsLimitSecondOptions: List<Int> = emptyList(),
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
-    val appLimitMinuteOptions: List<Int> = emptyList()
+    val appLimitSecondOptions: List<Int> = emptyList()
 )
 
 class MoreFocusViewModel(
@@ -44,24 +45,29 @@ class MoreFocusViewModel(
         refresh()
     }
 
-    fun setDailyReelsLimitMinutes(limitMinutes: Int) {
-        settingsRepository.setDailyReelsLimitMinutes(limitMinutes)
+    fun setExponentialPauseLockEnabled(enabled: Boolean) {
+        settingsRepository.setExponentialPauseLockEnabled(enabled)
         refresh()
     }
 
-    fun addAppLimit(packageName: String, limitMinutes: Int) {
+    fun setDailyReelsLimitSeconds(limitSeconds: Int) {
+        settingsRepository.setDailyReelsLimitSeconds(limitSeconds)
+        refresh()
+    }
+
+    fun addAppLimit(packageName: String, limitSeconds: Int) {
         val selectedApp = installedAppsRepository.getSelectableApps()
             .firstOrNull { it.packageName == packageName }
         settingsRepository.setAppLimit(
             packageName = packageName,
             appName = selectedApp?.displayName ?: packageName,
-            limitMinutes = limitMinutes
+            limitSeconds = limitSeconds
         )
         refresh()
     }
 
-    fun setAppLimitMinutes(packageName: String, limitMinutes: Int) {
-        settingsRepository.setAppLimitMinutes(packageName, limitMinutes)
+    fun setAppLimitSeconds(packageName: String, limitSeconds: Int) {
+        settingsRepository.setAppLimitSeconds(packageName, limitSeconds)
         refresh()
     }
 
@@ -82,12 +88,13 @@ class MoreFocusViewModel(
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
             instagramReelsEnabled = settings.instagramReelsEnabled,
-            dailyReelsLimitMinutes = settings.dailyReelsLimitMinutes,
+            exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
+            dailyReelsLimitSeconds = settings.dailyReelsLimitSeconds,
             dailyReelsUsageMillis = blockSettings.dailyUsageMillis,
-            dailyReelsLimitMinuteOptions = settingsRepository.dailyReelsLimitMinuteOptions,
+            dailyReelsLimitSecondOptions = settingsRepository.dailyReelsLimitSecondOptions,
             appLimitRules = settings.appLimitRules,
             selectableApps = installedAppsRepository.getSelectableApps(),
-            appLimitMinuteOptions = settingsRepository.appLimitMinuteOptions
+            appLimitSecondOptions = settingsRepository.appLimitSecondOptions
         )
     }
 }

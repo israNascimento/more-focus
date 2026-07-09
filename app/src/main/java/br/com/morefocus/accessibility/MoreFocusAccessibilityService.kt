@@ -23,6 +23,7 @@ import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockDecisionEngine
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
+import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
 import br.com.morefocus.data.MoreFocusSettingsRepository
@@ -140,11 +141,16 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun showOverlay(message: OverlayMessage) {
-        if (overlayView != null && overlayMessage == message) return
+        val messageWithPauseLock = message.copy(
+            pauseLockSeconds = settingsRepository.pauseExtensionLockSeconds(
+                message.pauseExtensionTarget
+            )
+        )
+        if (overlayView != null && overlayMessage == messageWithPauseLock) return
         if (overlayView != null) hideOverlay()
 
-        overlayMessage = message
-        val view = buildOverlayView(message)
+        overlayMessage = messageWithPauseLock
+        val view = buildOverlayView(messageWithPauseLock)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -176,9 +182,14 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                     FocusOverlay(
                         title = message.title,
                         description = message.description,
+                        initialPauseLockSeconds = message.pauseLockSeconds,
                         onPauseClick = {
                             val nowMillis = System.currentTimeMillis()
-                            settingsRepository.pauseFor(PAUSE_DURATION_MILLIS, nowMillis)
+                            settingsRepository.pauseFor(
+                                durationMillis = PAUSE_DURATION_MILLIS,
+                                target = message.pauseExtensionTarget,
+                                nowMillis = nowMillis
+                            )
                             message.packageNameToTrackOnPause?.let { packageName ->
                                 activeLimitedAppPackageName = packageName
                                 activeLimitedAppStartedAtMillis = nowMillis
@@ -206,6 +217,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         OverlayMessage(
             title = getString(R.string.app_limit_overlay_title),
             description = getString(R.string.app_limit_overlay_description, rule.appName),
+            pauseExtensionTarget = PauseExtensionTarget.App(rule.packageName),
             packageNameToTrackOnPause = rule.packageName,
             trackReelsOnPause = trackReelsOnPause
         )
@@ -214,6 +226,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         OverlayMessage(
             title = getString(R.string.focus_overlay_title),
             description = getString(R.string.focus_overlay_description),
+            pauseExtensionTarget = PauseExtensionTarget.InstagramReels,
             packageNameToTrackOnPause = trackedAppRule?.packageName,
             trackReelsOnPause = true
         )
@@ -344,6 +357,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 private data class OverlayMessage(
     val title: String,
     val description: String,
+    val pauseExtensionTarget: PauseExtensionTarget,
     val packageNameToTrackOnPause: String?,
-    val trackReelsOnPause: Boolean
+    val trackReelsOnPause: Boolean,
+    val pauseLockSeconds: Int = 0
 )

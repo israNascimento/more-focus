@@ -15,6 +15,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,15 +29,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.com.morefocus.R
 import br.com.morefocus.ui.theme.MoreFocusTheme
+import kotlinx.coroutines.delay
 
 @Composable
 fun FocusOverlay(
     title: String,
     description: String,
+    initialPauseLockSeconds: Int,
     onPauseClick: () -> Unit,
     onExitClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var remainingPauseLockSeconds by remember(initialPauseLockSeconds) {
+        mutableIntStateOf(initialPauseLockSeconds.coerceAtLeast(0))
+    }
+
+    LaunchedEffect(initialPauseLockSeconds) {
+        while (remainingPauseLockSeconds > 0) {
+            delay(1_000L)
+            remainingPauseLockSeconds--
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -67,8 +85,20 @@ fun FocusOverlay(
                         alignment = Alignment.End
                     )
                 ) {
-                    Button(onClick = onPauseClick) {
-                        Text(text = stringResource(R.string.focus_overlay_ignore_minutes, 1))
+                    Button(
+                        onClick = onPauseClick,
+                        enabled = remainingPauseLockSeconds == 0
+                    ) {
+                        Text(
+                            text = if (remainingPauseLockSeconds > 0) {
+                                stringResource(
+                                    R.string.focus_overlay_add_minute_locked,
+                                    remainingPauseLockSeconds
+                                )
+                            } else {
+                                stringResource(R.string.focus_overlay_add_minute)
+                            }
+                        )
                     }
                     Button(onClick = onExitClick) {
                         Text(text = stringResource(R.string.focus_overlay_exit))
@@ -86,6 +116,7 @@ private fun FocusOverlayPreview() {
         FocusOverlay(
             title = stringResource(R.string.focus_overlay_title),
             description = stringResource(R.string.focus_overlay_description),
+            initialPauseLockSeconds = 9,
             onPauseClick = {},
             onExitClick = {}
         )
