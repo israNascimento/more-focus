@@ -26,12 +26,15 @@ import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
+import br.com.morefocus.blocking.ShortsBlocker
+import br.com.morefocus.blocking.isEnabledVerticalVideo
 import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
 class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistryOwner {
     private val reelsDetector = ReelsDetector()
-    private val decisionEngine = BlockDecisionEngine(reelsDetector)
+    private val shortsBlocker = ShortsBlocker()
+    private val decisionEngine = BlockDecisionEngine(reelsDetector, shortsBlocker)
     private val dailyUsageClock = DailyUsageClock()
     private val handler = Handler(Looper.getMainLooper())
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -40,7 +43,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
     private var overlayMessage: OverlayMessage? = null
-    private var reelsSessionStartedAtMillis: Long? = null
+    private var verticalVideosSessionStartedAtMillis: Long? = null
     private var activeLimitedAppPackageName: String? = null
     private var activeLimitedAppStartedAtMillis: Long? = null
     private var scheduledCheck: Runnable? = null
@@ -83,10 +86,15 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             root = AccessibilityNodeMapper.from(root)
         )
         val isInstagramReels = reelsDetector.isInstagramReels(screen)
+        val isYouTubeShorts = shortsBlocker.isYouTubeShorts(screen)
 
         recordActiveLimitedAppUsage(nowMillis)
-        recordActiveReelsUsage(nowMillis)
+        recordActiveVerticalVideosUsage(nowMillis)
         val settings = settingsRepository.getBlockSettings(nowMillis)
+        val isEnabledVerticalVideo = settings.isEnabledVerticalVideo(
+            isInstagramReels = isInstagramReels,
+            isYouTubeShorts = isYouTubeShorts
+        )
         val blockedAppRule = decisionEngine.blockedAppLimitRule(
             settings = settings,
             packageName = screen.packageName,
@@ -99,32 +107,41 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             showOverlay(
                 appLimitOverlayMessage(
                     rule = blockedAppRule,
-                    trackReelsOnPause = settings.focusEnabled &&
-                        settings.instagramReelsEnabled &&
-                        isInstagramReels
+                    trackVerticalVideosOnPause = settings.focusEnabled &&
+                        isEnabledVerticalVideo
                 )
             )
             return
         }
 
-        val shouldBlockReels = decisionEngine.shouldBlock(
+        val shouldBlockVerticalVideos = decisionEngine.shouldBlock(
             settings = settings,
             isInstagramReels = isInstagramReels,
+            isYouTubeShorts = isYouTubeShorts,
             nowMillis = nowMillis
         )
 
-        if (shouldBlockReels) {
+        if (shouldBlockVerticalVideos) {
             val trackedAppRule = settings.appLimitRuleFor(screen.packageName)
-            reelsSessionStartedAtMillis = null
+            verticalVideosSessionStartedAtMillis = null
             activeLimitedAppPackageName = null
             activeLimitedAppStartedAtMillis = null
             cancelScheduledCheck()
-            showOverlay(reelsOverlayMessage(trackedAppRule))
+            showOverlay(verticalVideosOverlayMessage(trackedAppRule))
         } else {
             hideOverlay()
             updateActiveLimitedAppTracking(settings, screen.packageName, nowMillis)
-            updateActiveReelsTracking(settings, isInstagramReels, nowMillis)
-            scheduleNextCheck(settings, screen.packageName, isInstagramReels, nowMillis)
+            updateActiveVerticalVideosTracking(
+                settings,
+                isEnabledVerticalVideo,
+                nowMillis
+            )
+            scheduleNextCheck(
+                settings,
+                screen.packageName,
+                isEnabledVerticalVideo,
+                nowMillis
+            )
         }
     }
 
@@ -194,8 +211,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                                 activeLimitedAppPackageName = packageName
                                 activeLimitedAppStartedAtMillis = nowMillis
                             }
-                            if (message.trackReelsOnPause) {
-                                reelsSessionStartedAtMillis = nowMillis
+                            if (message.trackVerticalVideosOnPause) {
+                                verticalVideosSessionStartedAtMillis = nowMillis
                             }
                             hideOverlay()
                             scheduleEvaluation(PAUSE_DURATION_MILLIS)
@@ -212,23 +229,23 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     private fun appLimitOverlayMessage(
         rule: AppLimitRule,
-        trackReelsOnPause: Boolean
+        trackVerticalVideosOnPause: Boolean
     ): OverlayMessage =
         OverlayMessage(
             title = getString(R.string.app_limit_overlay_title),
             description = getString(R.string.app_limit_overlay_description, rule.appName),
             pauseExtensionTarget = PauseExtensionTarget.App(rule.packageName),
             packageNameToTrackOnPause = rule.packageName,
-            trackReelsOnPause = trackReelsOnPause
+            trackVerticalVideosOnPause = trackVerticalVideosOnPause
         )
 
-    private fun reelsOverlayMessage(trackedAppRule: AppLimitRule?): OverlayMessage =
+    private fun verticalVideosOverlayMessage(trackedAppRule: AppLimitRule?): OverlayMessage =
         OverlayMessage(
             title = getString(R.string.focus_overlay_title),
             description = getString(R.string.focus_overlay_description),
-            pauseExtensionTarget = PauseExtensionTarget.InstagramReels,
+            pauseExtensionTarget = PauseExtensionTarget.VerticalVideos,
             packageNameToTrackOnPause = trackedAppRule?.packageName,
-            trackReelsOnPause = true
+            trackVerticalVideosOnPause = true
         )
 
     private fun recordActiveLimitedAppUsage(nowMillis: Long) {
@@ -242,19 +259,19 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         activeLimitedAppStartedAtMillis = nowMillis
     }
 
-    private fun recordActiveReelsUsage(nowMillis: Long) {
-        val startedAtMillis = reelsSessionStartedAtMillis ?: return
-        settingsRepository.recordDailyReelsUsage(
+    private fun recordActiveVerticalVideosUsage(nowMillis: Long) {
+        val startedAtMillis = verticalVideosSessionStartedAtMillis ?: return
+        settingsRepository.recordDailyVerticalVideosUsage(
             startedAtMillis = startedAtMillis,
             endedAtMillis = nowMillis
         )
-        reelsSessionStartedAtMillis = nowMillis
+        verticalVideosSessionStartedAtMillis = nowMillis
     }
 
     private fun stopTracking(nowMillis: Long) {
         if (!::settingsRepository.isInitialized) return
         recordActiveLimitedAppUsage(nowMillis)
-        recordActiveReelsUsage(nowMillis)
+        recordActiveVerticalVideosUsage(nowMillis)
         stopActiveSessions()
         cancelScheduledCheck()
     }
@@ -262,7 +279,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private fun stopActiveSessions() {
         activeLimitedAppPackageName = null
         activeLimitedAppStartedAtMillis = null
-        reelsSessionStartedAtMillis = null
+        verticalVideosSessionStartedAtMillis = null
     }
 
     private fun updateActiveLimitedAppTracking(
@@ -280,30 +297,28 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         }
     }
 
-    private fun updateActiveReelsTracking(
+    private fun updateActiveVerticalVideosTracking(
         settings: BlockSettings,
-        isInstagramReels: Boolean,
+        isEnabledVerticalVideo: Boolean,
         nowMillis: Long
     ) {
-        if (settings.focusEnabled && settings.instagramReelsEnabled && isInstagramReels) {
-            reelsSessionStartedAtMillis = nowMillis
+        if (settings.focusEnabled && isEnabledVerticalVideo) {
+            verticalVideosSessionStartedAtMillis = nowMillis
         } else {
-            reelsSessionStartedAtMillis = null
+            verticalVideosSessionStartedAtMillis = null
         }
     }
 
     private fun scheduleNextCheck(
         settings: BlockSettings,
         packageName: String?,
-        isInstagramReels: Boolean,
+        isEnabledVerticalVideo: Boolean,
         nowMillis: Long
     ) {
         val isTrackingApp = settings.focusEnabled && settings.appLimitRuleFor(packageName) != null
-        val isTrackingReels = settings.focusEnabled &&
-            settings.instagramReelsEnabled &&
-            isInstagramReels
+        val isTrackingVerticalVideos = settings.focusEnabled && isEnabledVerticalVideo
 
-        if (!isTrackingApp && !isTrackingReels) {
+        if (!isTrackingApp && !isTrackingVerticalVideos) {
             cancelScheduledCheck()
             return
         }
@@ -313,9 +328,10 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val appLimitDelayMillis = settings.appLimitRuleFor(packageName)
             ?.remainingDailyLimitMillis
             ?.takeIf { settings.pauseUntilMillis <= nowMillis && it > 0L }
-        val reelsLimitDelayMillis = settings.remainingDailyLimitMillis
+        val verticalVideosLimitDelayMillis =
+            settings.remainingDailyVerticalVideosLimitMillis
             .takeIf {
-                isTrackingReels &&
+                isTrackingVerticalVideos &&
                     settings.pauseUntilMillis <= nowMillis &&
                     it > 0L
             }
@@ -324,7 +340,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val nextDelayMillis = listOfNotNull(
             pauseDelayMillis,
             appLimitDelayMillis,
-            reelsLimitDelayMillis,
+            verticalVideosLimitDelayMillis,
             resetDelayMillis
         ).minOrNull()
 
@@ -359,6 +375,6 @@ private data class OverlayMessage(
     val description: String,
     val pauseExtensionTarget: PauseExtensionTarget,
     val packageNameToTrackOnPause: String?,
-    val trackReelsOnPause: Boolean,
+    val trackVerticalVideosOnPause: Boolean,
     val pauseLockSeconds: Int = 0
 )

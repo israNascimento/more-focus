@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReelsBlockerTest {
-    private val engine = BlockDecisionEngine(ReelsDetector())
+    private val engine = BlockDecisionEngine(ReelsDetector(), ShortsBlocker())
 
     @Test
     fun blocksConfiguredAppWhenDailyLimitIsReached() {
@@ -134,8 +134,8 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    dailyLimitSeconds = 15 * 60,
-                    dailyUsageMillis = 15 * 60 * 1000L - 1
+                    dailyVerticalVideosLimitSeconds = 15 * 60,
+                    dailyVerticalVideosUsageMillis = 15 * 60 * 1000L - 1
                 ),
                 screen = explicitReelsScreen(),
                 nowMillis = 1_000L
@@ -183,6 +183,62 @@ class ReelsBlockerTest {
     }
 
     @Test
+    fun blocksYouTubeShortsWhenSharedVerticalVideosLimitIsReached() {
+        assertTrue(
+            engine.shouldBlock(
+                settings = settingsAtLimit(),
+                screen = youtubeShortsScreen(),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun doesNotBlockYouTubeShortsWhenItsRuleIsDisabled() {
+        assertFalse(
+            engine.shouldBlock(
+                settings = settingsAtLimit().copy(youtubeShortsEnabled = false),
+                screen = youtubeShortsScreen(),
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
+    fun onlyEnabledPlatformsAreCountedAsVerticalVideos() {
+        val reelsOnly = settingsAtLimit().copy(
+            instagramReelsEnabled = true,
+            youtubeShortsEnabled = false
+        )
+        val shortsOnly = settingsAtLimit().copy(
+            instagramReelsEnabled = false,
+            youtubeShortsEnabled = true
+        )
+
+        assertTrue(reelsOnly.isEnabledVerticalVideo(true, false))
+        assertFalse(reelsOnly.isEnabledVerticalVideo(false, true))
+        assertTrue(shortsOnly.isEnabledVerticalVideo(false, true))
+        assertFalse(shortsOnly.isEnabledVerticalVideo(true, false))
+    }
+
+    @Test
+    fun doesNotBlockRegularYouTubeScreenWhenSharedLimitIsReached() {
+        val screen = ScreenSnapshot(
+            packageName = "com.google.android.youtube",
+            className = "com.google.android.apps.youtube.app.watchwhile.MainActivity",
+            root = NodeSnapshot(text = "Início")
+        )
+
+        assertFalse(
+            engine.shouldBlock(
+                settings = settingsAtLimit(),
+                screen = screen,
+                nowMillis = 1_000L
+            )
+        )
+    }
+
+    @Test
     fun doesNotBlockWhileTemporaryPauseIsActive() {
         val screen = explicitReelsScreen()
 
@@ -192,7 +248,7 @@ class ReelsBlockerTest {
                     focusEnabled = true,
                     instagramReelsEnabled = true,
                     pauseUntilMillis = 1_300L,
-                    dailyUsageMillis = 15 * 60 * 1000L
+                    dailyVerticalVideosUsageMillis = 15 * 60 * 1000L
                 ),
                 screen = screen,
                 nowMillis = 1_000L
@@ -210,7 +266,7 @@ class ReelsBlockerTest {
                     focusEnabled = true,
                     instagramReelsEnabled = true,
                     pauseUntilMillis = 999L,
-                    dailyUsageMillis = 15 * 60 * 1000L
+                    dailyVerticalVideosUsageMillis = 15 * 60 * 1000L
                 ),
                 screen = screen,
                 nowMillis = 1_000L
@@ -326,8 +382,8 @@ class ReelsBlockerTest {
                 settings = BlockSettings(
                     focusEnabled = true,
                     instagramReelsEnabled = true,
-                    dailyLimitSeconds = 5 * 60,
-                    dailyUsageMillis = 10 * 60 * 1000L
+                    dailyVerticalVideosLimitSeconds = 5 * 60,
+                    dailyVerticalVideosUsageMillis = 10 * 60 * 1000L
                 ),
                 screen = explicitReelsScreen(),
                 nowMillis = 1_000L
@@ -342,6 +398,15 @@ class ReelsBlockerTest {
             root = NodeSnapshot(
                 viewIdResourceName = "com.instagram.android:id/clips_viewer_container",
                 children = listOf(NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_video_player"))
+            )
+        )
+
+    private fun youtubeShortsScreen(): ScreenSnapshot =
+        ScreenSnapshot(
+            packageName = "com.google.android.youtube",
+            className = "com.google.android.apps.youtube.app.watchwhile.MainActivity",
+            root = NodeSnapshot(
+                viewIdResourceName = "com.google.android.youtube:id/reel_progress_bar"
             )
         )
 
@@ -374,7 +439,7 @@ class ReelsBlockerTest {
         BlockSettings(
             focusEnabled = true,
             instagramReelsEnabled = true,
-            dailyLimitSeconds = 15 * 60,
-            dailyUsageMillis = 15 * 60 * 1000L
+            dailyVerticalVideosLimitSeconds = 15 * 60,
+            dailyVerticalVideosUsageMillis = 15 * 60 * 1000L
         )
 }

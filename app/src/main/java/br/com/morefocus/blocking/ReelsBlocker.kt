@@ -7,16 +7,18 @@ private const val MILLIS_PER_SECOND = 1000L
 data class BlockSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
+    val youtubeShortsEnabled: Boolean = true,
     val pauseUntilMillis: Long = 0L,
-    val dailyLimitSeconds: Int = 15 * 60,
-    val dailyUsageMillis: Long = 0L,
+    val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
+    val dailyVerticalVideosUsageMillis: Long = 0L,
     val appLimitRules: List<AppLimitRule> = emptyList()
 ) {
-    val dailyLimitMillis: Long
-        get() = dailyLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
+    val dailyVerticalVideosLimitMillis: Long
+        get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
 
-    val remainingDailyLimitMillis: Long
-        get() = (dailyLimitMillis - dailyUsageMillis).coerceAtLeast(0L)
+    val remainingDailyVerticalVideosLimitMillis: Long
+        get() = (dailyVerticalVideosLimitMillis - dailyVerticalVideosUsageMillis)
+            .coerceAtLeast(0L)
 
     fun appLimitRuleFor(packageName: String?): AppLimitRule? =
         packageName
@@ -47,8 +49,16 @@ data class NodeSnapshot(
     }
 }
 
+internal fun BlockSettings.isEnabledVerticalVideo(
+    isInstagramReels: Boolean,
+    isYouTubeShorts: Boolean
+): Boolean =
+    (instagramReelsEnabled && isInstagramReels) ||
+        (youtubeShortsEnabled && isYouTubeShorts)
+
 class BlockDecisionEngine(
-    private val reelsDetector: ReelsDetector
+    private val reelsDetector: ReelsDetector,
+    private val shortsBlocker: ShortsBlocker
 ) {
     fun shouldBlock(settings: BlockSettings, screen: ScreenSnapshot, nowMillis: Long): Boolean {
         if (blockedAppLimitRule(settings, screen.packageName, nowMillis) != null) return true
@@ -56,17 +66,23 @@ class BlockDecisionEngine(
         return shouldBlock(
             settings = settings,
             isInstagramReels = reelsDetector.isInstagramReels(screen),
+            isYouTubeShorts = shortsBlocker.isYouTubeShorts(screen),
             nowMillis = nowMillis
         )
     }
 
-    fun shouldBlock(settings: BlockSettings, isInstagramReels: Boolean, nowMillis: Long): Boolean {
+    fun shouldBlock(
+        settings: BlockSettings,
+        isInstagramReels: Boolean,
+        isYouTubeShorts: Boolean,
+        nowMillis: Long
+    ): Boolean {
         if (!settings.focusEnabled) return false
-        if (!settings.instagramReelsEnabled) return false
         if (settings.pauseUntilMillis > nowMillis) return false
-        if (!isInstagramReels) return false
+        if (!settings.isEnabledVerticalVideo(isInstagramReels, isYouTubeShorts)) return false
 
-        return settings.dailyUsageMillis >= settings.dailyLimitMillis
+        return settings.dailyVerticalVideosUsageMillis >=
+            settings.dailyVerticalVideosLimitMillis
     }
 
     fun blockedAppLimitRule(

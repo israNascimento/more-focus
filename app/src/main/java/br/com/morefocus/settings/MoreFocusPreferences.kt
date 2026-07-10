@@ -17,13 +17,14 @@ class MoreFocusPreferences(context: Context) {
     private val dailyUsageClock = DailyUsageClock()
 
     fun getBlockSettings(nowMillis: Long = System.currentTimeMillis()): BlockSettings {
-        val dailyUsageState = getDailyReelsUsageState(nowMillis)
+        val dailyUsageState = getDailyVerticalVideosUsageState(nowMillis)
         return BlockSettings(
             focusEnabled = preferences.getBoolean(KEY_FOCUS_ENABLED, true),
-            instagramReelsEnabled = preferences.getBoolean(KEY_INSTAGRAM_REELS_ENABLED, true),
+            instagramReelsEnabled = isInstagramReelsEnabled(),
+            youtubeShortsEnabled = isYouTubeShortsEnabled(),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
-            dailyLimitSeconds = dailyReelsLimitSeconds(),
-            dailyUsageMillis = dailyUsageState.usedMillis,
+            dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
+            dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
             appLimitRules = appLimitRules(nowMillis)
         )
     }
@@ -36,10 +37,21 @@ class MoreFocusPreferences(context: Context) {
     }
 
     fun isInstagramReelsEnabled(): Boolean =
-        preferences.getBoolean(KEY_INSTAGRAM_REELS_ENABLED, true)
+        preferences.getBoolean(KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED, true)
 
     fun setInstagramReelsEnabled(enabled: Boolean) {
-        preferences.edit { putBoolean(KEY_INSTAGRAM_REELS_ENABLED, enabled) }
+        preferences.edit {
+            putBoolean(KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED, enabled)
+        }
+    }
+
+    fun isYouTubeShortsEnabled(): Boolean =
+        preferences.getBoolean(KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED, true)
+
+    fun setYouTubeShortsEnabled(enabled: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED, enabled)
+        }
     }
 
     fun isExponentialPauseLockEnabled(): Boolean =
@@ -49,26 +61,20 @@ class MoreFocusPreferences(context: Context) {
         preferences.edit { putBoolean(KEY_EXPONENTIAL_PAUSE_LOCK_ENABLED, enabled) }
     }
 
-    fun dailyReelsLimitSeconds(): Int {
-        if (preferences.contains(KEY_DAILY_REELS_LIMIT_SECONDS)) {
-            return sanitizedLimitSeconds(
-                preferences.getInt(
-                    KEY_DAILY_REELS_LIMIT_SECONDS,
-                    DEFAULT_DAILY_REELS_LIMIT_SECONDS
-                )
+    fun dailyVerticalVideosLimitSeconds(): Int =
+        sanitizedLimitSeconds(
+            preferences.getInt(
+                KEY_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
+                DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
             )
-        }
-
-        val legacyMinutes = preferences.getInt(
-            KEY_DAILY_REELS_LIMIT_MINUTES,
-            DEFAULT_DAILY_REELS_LIMIT_MINUTES
         )
-        return sanitizedLimitSeconds(legacyMinutes * SECONDS_PER_MINUTE)
-    }
 
-    fun setDailyReelsLimitSeconds(limitSeconds: Int) {
+    fun setDailyVerticalVideosLimitSeconds(limitSeconds: Int) {
         preferences.edit {
-            putInt(KEY_DAILY_REELS_LIMIT_SECONDS, sanitizedLimitSeconds(limitSeconds))
+            putInt(
+                KEY_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
+                sanitizedLimitSeconds(limitSeconds)
+            )
         }
     }
 
@@ -177,13 +183,18 @@ class MoreFocusPreferences(context: Context) {
     fun pauseUntilMillis(): Long =
         preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L)
 
-    fun getDailyReelsUsageState(nowMillis: Long = System.currentTimeMillis()): DailyUsageState {
+    fun getDailyVerticalVideosUsageState(
+        nowMillis: Long = System.currentTimeMillis()
+    ): DailyUsageState {
         val currentState = dailyUsageClock.stateFor(storedDailyUsageState(), nowMillis)
         saveDailyUsageState(currentState)
         return currentState
     }
 
-    fun recordDailyReelsUsage(startedAtMillis: Long?, endedAtMillis: Long): DailyUsageState {
+    fun recordDailyVerticalVideosUsage(
+        startedAtMillis: Long?,
+        endedAtMillis: Long
+    ): DailyUsageState {
         val updatedState = dailyUsageClock.addVisibleTime(
             state = storedDailyUsageState(),
             startedAtMillis = startedAtMillis,
@@ -221,14 +232,20 @@ class MoreFocusPreferences(context: Context) {
 
     private fun storedDailyUsageState(): DailyUsageState =
         DailyUsageState(
-            dayKey = preferences.getString(KEY_DAILY_REELS_USAGE_DAY, null).orEmpty(),
-            usedMillis = preferences.getLong(KEY_DAILY_REELS_USAGE_MILLIS, 0L)
+            dayKey = preferences.getString(
+                KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY,
+                null
+            ).orEmpty(),
+            usedMillis = preferences.getLong(
+                KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS,
+                0L
+            )
         )
 
     private fun saveDailyUsageState(state: DailyUsageState) {
         preferences.edit {
-            putString(KEY_DAILY_REELS_USAGE_DAY, state.dayKey)
-            putLong(KEY_DAILY_REELS_USAGE_MILLIS, state.usedMillis)
+            putString(KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY, state.dayKey)
+            putLong(KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS, state.usedMillis)
         }
     }
 
@@ -244,21 +261,21 @@ class MoreFocusPreferences(context: Context) {
             return sanitizedLimitSeconds(
                 preferences.getInt(
                     appLimitSecondsKey(packageName),
-                    DEFAULT_DAILY_REELS_LIMIT_SECONDS
+                    DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
                 )
             )
         }
 
         val legacyMinutes = preferences.getInt(
             appLimitMinutesKey(packageName),
-            DEFAULT_DAILY_REELS_LIMIT_MINUTES
+            DEFAULT_LIMIT_MINUTES
         )
         return sanitizedLimitSeconds(legacyMinutes * SECONDS_PER_MINUTE)
     }
 
     private fun sanitizedLimitSeconds(limitSeconds: Int): Int =
-        limitSeconds.takeIf { it in DAILY_REELS_LIMIT_SECOND_OPTIONS }
-            ?: DEFAULT_DAILY_REELS_LIMIT_SECONDS
+        limitSeconds.takeIf { it in DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS }
+            ?: DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
 
     private fun storedDailyAppUsageState(packageName: String): DailyUsageState =
         DailyUsageState(
@@ -306,12 +323,12 @@ class MoreFocusPreferences(context: Context) {
         "$KEY_PAUSE_EXTENSION_COUNT_PREFIX${target.preferenceKey()}"
 
     private fun PauseExtensionTarget.preferenceKey(): String = when (this) {
-        PauseExtensionTarget.InstagramReels -> "instagram_reels"
+        PauseExtensionTarget.VerticalVideos -> "vertical_videos"
         is PauseExtensionTarget.App -> "app_$packageName"
     }
 
     companion object {
-        val DAILY_REELS_LIMIT_SECOND_OPTIONS = listOf(
+        val DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS = listOf(
             30,
             5 * 60,
             10 * 60,
@@ -319,20 +336,25 @@ class MoreFocusPreferences(context: Context) {
             30 * 60,
             60 * 60
         )
-        const val DEFAULT_DAILY_REELS_LIMIT_SECONDS = 15 * 60
-        private const val DEFAULT_DAILY_REELS_LIMIT_MINUTES = 15
+        const val DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS = 15 * 60
+        private const val DEFAULT_LIMIT_MINUTES = 15
         private const val SECONDS_PER_MINUTE = 60
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
-        private const val KEY_INSTAGRAM_REELS_ENABLED = "instagram_reels_enabled"
+        private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =
+            "vertical_videos_instagram_reels_enabled"
+        private const val KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED =
+            "vertical_videos_youtube_shorts_enabled"
         private const val KEY_EXPONENTIAL_PAUSE_LOCK_ENABLED =
             "exponential_pause_lock_enabled"
         private const val KEY_PAUSE_UNTIL_MILLIS = "pause_until_millis"
-        private const val KEY_DAILY_REELS_LIMIT_SECONDS = "daily_reels_limit_seconds"
-        private const val KEY_DAILY_REELS_LIMIT_MINUTES = "daily_reels_limit_minutes"
-        private const val KEY_DAILY_REELS_USAGE_DAY = "daily_reels_usage_day"
-        private const val KEY_DAILY_REELS_USAGE_MILLIS = "daily_reels_usage_millis"
+        private const val KEY_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS =
+            "daily_vertical_videos_limit_seconds"
+        private const val KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY =
+            "daily_vertical_videos_usage_day"
+        private const val KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS =
+            "daily_vertical_videos_usage_millis"
         private const val KEY_APP_LIMIT_PACKAGES = "app_limit_packages"
         private const val KEY_APP_LIMIT_APP_NAME_PREFIX = "app_limit_app_name_"
         private const val KEY_APP_LIMIT_MINUTES_PREFIX = "app_limit_minutes_"

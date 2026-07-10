@@ -1,7 +1,7 @@
 package br.com.morefocus.blocking
 
 sealed interface PauseExtensionTarget {
-    data object InstagramReels : PauseExtensionTarget
+    data object VerticalVideos : PauseExtensionTarget
 
     data class App(val packageName: String) : PauseExtensionTarget {
         init {

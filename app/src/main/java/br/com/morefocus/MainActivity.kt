@@ -101,8 +101,10 @@ private fun MoreFocusApp(
         uiState = uiState,
         onFocusEnabledChange = viewModel::setFocusEnabled,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
+        onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
-        onDailyReelsLimitSecondsChange = viewModel::setDailyReelsLimitSeconds,
+        onDailyVerticalVideosLimitSecondsChange =
+            viewModel::setDailyVerticalVideosLimitSeconds,
         onAddAppLimit = viewModel::addAppLimit,
         onAppLimitSecondsChange = viewModel::setAppLimitSeconds,
         onAppLimitEnabledChange = viewModel::setAppLimitEnabled,
@@ -124,8 +126,9 @@ private fun MoreFocusScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitSecondsChange: (Int) -> Unit,
+    onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
     onAppLimitSecondsChange: (String, Int) -> Unit,
     onAppLimitEnabledChange: (String, Boolean) -> Unit,
@@ -191,9 +194,11 @@ private fun MoreFocusScreen(
                             uiState = uiState,
                             onFocusEnabledChange = onFocusEnabledChange,
                             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
+                            onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
                             onExponentialPauseLockEnabledChange =
                                 onExponentialPauseLockEnabledChange,
-                            onDailyReelsLimitSecondsChange = onDailyReelsLimitSecondsChange,
+                            onDailyVerticalVideosLimitSecondsChange =
+                                onDailyVerticalVideosLimitSecondsChange,
                             onAddAppLimit = onAddAppLimit,
                             onAppLimitSecondsChange = onAppLimitSecondsChange,
                             onAppLimitEnabledChange = onAppLimitEnabledChange,
@@ -212,8 +217,9 @@ private fun PreferencesScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitSecondsChange: (Int) -> Unit,
+    onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
     onAppLimitSecondsChange: (String, Int) -> Unit,
     onAppLimitEnabledChange: (String, Boolean) -> Unit,
@@ -238,13 +244,17 @@ private fun PreferencesScreen(
         PreferenceCard(
             focusEnabled = uiState.focusEnabled,
             instagramReelsEnabled = uiState.instagramReelsEnabled,
+            youtubeShortsEnabled = uiState.youtubeShortsEnabled,
             exponentialPauseLockEnabled = uiState.exponentialPauseLockEnabled,
-            dailyReelsLimitSeconds = uiState.dailyReelsLimitSeconds,
-            dailyReelsLimitSecondOptions = uiState.dailyReelsLimitSecondOptions,
+            dailyVerticalVideosLimitSeconds = uiState.dailyVerticalVideosLimitSeconds,
+            dailyVerticalVideosLimitSecondOptions =
+                uiState.dailyVerticalVideosLimitSecondOptions,
             onFocusEnabledChange = onFocusEnabledChange,
             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
+            onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
             onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
-            onDailyReelsLimitSecondsChange = onDailyReelsLimitSecondsChange,
+            onDailyVerticalVideosLimitSecondsChange =
+                onDailyVerticalVideosLimitSecondsChange,
             appLimitRules = uiState.appLimitRules,
             selectableApps = uiState.selectableApps,
             appLimitSecondOptions = uiState.appLimitSecondOptions,
@@ -280,10 +290,10 @@ private fun UsageScreen(uiState: MoreFocusUiState) {
         }
 
         UsageSummaryCard(
-            title = stringResource(R.string.usage_reels_title),
-            usedMillis = uiState.dailyReelsUsageMillis,
-            limitMillis = uiState.dailyReelsLimitSeconds.toLimitMillis(),
-            enabled = uiState.instagramReelsEnabled
+            title = stringResource(R.string.usage_vertical_videos_title),
+            usedMillis = uiState.dailyVerticalVideosUsageMillis,
+            limitMillis = uiState.dailyVerticalVideosLimitSeconds.toLimitMillis(),
+            enabled = uiState.instagramReelsEnabled || uiState.youtubeShortsEnabled
         )
 
         Text(
@@ -480,13 +490,15 @@ private fun DisclosureCard() {
 private fun PreferenceCard(
     focusEnabled: Boolean,
     instagramReelsEnabled: Boolean,
+    youtubeShortsEnabled: Boolean,
     exponentialPauseLockEnabled: Boolean,
-    dailyReelsLimitSeconds: Int,
-    dailyReelsLimitSecondOptions: List<Int>,
+    dailyVerticalVideosLimitSeconds: Int,
+    dailyVerticalVideosLimitSecondOptions: List<Int>,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
-    onDailyReelsLimitSecondsChange: (Int) -> Unit,
+    onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
     appLimitRules: List<AppLimitRule>,
     selectableApps: List<SelectableApp>,
     appLimitSecondOptions: List<Int>,
@@ -523,10 +535,16 @@ private fun PreferenceCard(
                 checked = instagramReelsEnabled,
                 onCheckedChange = onInstagramReelsEnabledChange
             )
+            ToggleRow(
+                title = stringResource(R.string.preference_youtube_shorts_enabled_title),
+                description = stringResource(R.string.preference_youtube_shorts_enabled_description),
+                checked = youtubeShortsEnabled,
+                onCheckedChange = onYouTubeShortsEnabledChange
+            )
             DailyLimitSelector(
-                selectedLimitSeconds = dailyReelsLimitSeconds,
-                limitOptions = dailyReelsLimitSecondOptions,
-                onLimitSelected = onDailyReelsLimitSecondsChange
+                selectedLimitSeconds = dailyVerticalVideosLimitSeconds,
+                limitOptions = dailyVerticalVideosLimitSecondOptions,
+                onLimitSelected = onDailyVerticalVideosLimitSecondsChange
             )
             AppLimitSection(
                 appLimitRules = appLimitRules,
@@ -554,12 +572,12 @@ private fun DailyLimitSelector(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = stringResource(R.string.daily_reels_limit_title),
+            text = stringResource(R.string.daily_vertical_videos_limit_title),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium
         )
         Text(
-            text = stringResource(R.string.daily_reels_limit_description),
+            text = stringResource(R.string.daily_vertical_videos_limit_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -911,10 +929,11 @@ private fun MoreFocusScreenPreview() {
                 serviceEnabled = false,
                 focusEnabled = true,
                 instagramReelsEnabled = true,
+                youtubeShortsEnabled = true,
                 exponentialPauseLockEnabled = true,
-                dailyReelsLimitSeconds = 15 * 60,
-                dailyReelsUsageMillis = 7 * 60 * 1000L,
-                dailyReelsLimitSecondOptions = listOf(
+                dailyVerticalVideosLimitSeconds = 15 * 60,
+                dailyVerticalVideosUsageMillis = 7 * 60 * 1000L,
+                dailyVerticalVideosLimitSecondOptions = listOf(
                     30,
                     5 * 60,
                     10 * 60,
@@ -951,8 +970,9 @@ private fun MoreFocusScreenPreview() {
             ),
             onFocusEnabledChange = {},
             onInstagramReelsEnabledChange = {},
+            onYouTubeShortsEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
-            onDailyReelsLimitSecondsChange = {},
+            onDailyVerticalVideosLimitSecondsChange = {},
             onAddAppLimit = { _, _ -> },
             onAppLimitSecondsChange = { _, _ -> },
             onAppLimitEnabledChange = { _, _ -> },

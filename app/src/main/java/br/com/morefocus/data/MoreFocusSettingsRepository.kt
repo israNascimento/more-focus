@@ -9,13 +9,14 @@ import br.com.morefocus.settings.MoreFocusPreferences
 data class MoreFocusSettings(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
+    val youtubeShortsEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
-    val dailyReelsLimitSeconds: Int,
+    val dailyVerticalVideosLimitSeconds: Int,
     val appLimitRules: List<AppLimitRule> = emptyList()
 )
 
 interface MoreFocusSettingsRepository {
-    val dailyReelsLimitSecondOptions: List<Int>
+    val dailyVerticalVideosLimitSecondOptions: List<Int>
 
     val appLimitSecondOptions: List<Int>
 
@@ -27,9 +28,11 @@ interface MoreFocusSettingsRepository {
 
     fun setInstagramReelsEnabled(enabled: Boolean)
 
+    fun setYouTubeShortsEnabled(enabled: Boolean)
+
     fun setExponentialPauseLockEnabled(enabled: Boolean)
 
-    fun setDailyReelsLimitSeconds(limitSeconds: Int)
+    fun setDailyVerticalVideosLimitSeconds(limitSeconds: Int)
 
     fun setAppLimit(packageName: String, appName: String, limitSeconds: Int)
 
@@ -50,7 +53,10 @@ interface MoreFocusSettingsRepository {
         nowMillis: Long = System.currentTimeMillis()
     )
 
-    fun recordDailyReelsUsage(startedAtMillis: Long?, endedAtMillis: Long): DailyUsageState
+    fun recordDailyVerticalVideosUsage(
+        startedAtMillis: Long?,
+        endedAtMillis: Long
+    ): DailyUsageState
 
     fun recordDailyAppUsage(
         packageName: String,
@@ -62,18 +68,19 @@ interface MoreFocusSettingsRepository {
 class SharedPreferencesMoreFocusSettingsRepository(
     private val preferences: MoreFocusPreferences
 ) : MoreFocusSettingsRepository {
-    override val dailyReelsLimitSecondOptions: List<Int> =
-        MoreFocusPreferences.DAILY_REELS_LIMIT_SECOND_OPTIONS
+    override val dailyVerticalVideosLimitSecondOptions: List<Int> =
+        MoreFocusPreferences.DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
     override val appLimitSecondOptions: List<Int> =
-        MoreFocusPreferences.DAILY_REELS_LIMIT_SECOND_OPTIONS
+        MoreFocusPreferences.DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
     override fun getSettings(): MoreFocusSettings =
         MoreFocusSettings(
             focusEnabled = preferences.isFocusEnabled(),
             instagramReelsEnabled = preferences.isInstagramReelsEnabled(),
+            youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
-            dailyReelsLimitSeconds = preferences.dailyReelsLimitSeconds(),
+            dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules()
         )
 
@@ -88,12 +95,16 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.setInstagramReelsEnabled(enabled)
     }
 
+    override fun setYouTubeShortsEnabled(enabled: Boolean) {
+        preferences.setYouTubeShortsEnabled(enabled)
+    }
+
     override fun setExponentialPauseLockEnabled(enabled: Boolean) {
         preferences.setExponentialPauseLockEnabled(enabled)
     }
 
-    override fun setDailyReelsLimitSeconds(limitSeconds: Int) {
-        preferences.setDailyReelsLimitSeconds(limitSeconds)
+    override fun setDailyVerticalVideosLimitSeconds(limitSeconds: Int) {
+        preferences.setDailyVerticalVideosLimitSeconds(limitSeconds)
     }
 
     override fun setAppLimit(packageName: String, appName: String, limitSeconds: Int) {
@@ -125,11 +136,11 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.pauseFor(durationMillis, target, nowMillis)
     }
 
-    override fun recordDailyReelsUsage(
+    override fun recordDailyVerticalVideosUsage(
         startedAtMillis: Long?,
         endedAtMillis: Long
     ): DailyUsageState =
-        preferences.recordDailyReelsUsage(startedAtMillis, endedAtMillis)
+        preferences.recordDailyVerticalVideosUsage(startedAtMillis, endedAtMillis)
 
     override fun recordDailyAppUsage(
         packageName: String,

@@ -5,12 +5,12 @@ import org.junit.Test
 import java.util.Calendar
 import java.util.TimeZone
 
-class DailyReelsUsageTest {
+class DailyVerticalVideosUsageTest {
     private val timeZone = TimeZone.getTimeZone("America/Sao_Paulo")
     private val clock = DailyUsageClock(timeZone)
 
     @Test
-    fun addsVisibleReelsSessionTime() {
+    fun addsVisibleVerticalVideosSessionTime() {
         val startedAt = millis(year = 2026, month = 7, day = 8, hour = 10, minute = 0)
         val endedAt = startedAt + 5 * 60 * 1000L
         val state = DailyUsageState(dayKey = clock.dayKey(startedAt), usedMillis = 2 * 60 * 1000L)
@@ -26,7 +26,7 @@ class DailyReelsUsageTest {
     }
 
     @Test
-    fun doesNotAddTimeWhenThereIsNoVisibleReelsSession() {
+    fun doesNotAddTimeWhenThereIsNoVisibleVerticalVideosSession() {
         val now = millis(year = 2026, month = 7, day = 8, hour = 10, minute = 0)
         val state = DailyUsageState(dayKey = clock.dayKey(now), usedMillis = 2 * 60 * 1000L)
 

@@ -21,8 +21,9 @@ class MoreFocusViewModelTest {
             settings = MoreFocusSettings(
                 focusEnabled = false,
                 instagramReelsEnabled = false,
+                youtubeShortsEnabled = false,
                 exponentialPauseLockEnabled = false,
-                dailyReelsLimitSeconds = 30 * 60,
+                dailyVerticalVideosLimitSeconds = 30 * 60,
                 appLimitRules = listOf(
                     AppLimitRule(
                         packageName = "com.video",
@@ -31,7 +32,7 @@ class MoreFocusViewModelTest {
                     )
                 )
             ),
-            dailyReelsUsageMillis = 7 * 60 * 1000L
+            dailyVerticalVideosUsageMillis = 7 * 60 * 1000L
         )
         val accessibilityRepository = FakeAccessibilityServiceRepository(enabled = true)
         val installedAppsRepository = FakeInstalledAppsRepository(
@@ -48,14 +49,18 @@ class MoreFocusViewModelTest {
         assertTrue(state.serviceEnabled)
         assertFalse(state.focusEnabled)
         assertFalse(state.instagramReelsEnabled)
+        assertFalse(state.youtubeShortsEnabled)
         assertFalse(state.exponentialPauseLockEnabled)
-        assertEquals(30 * 60, state.dailyReelsLimitSeconds)
-        assertEquals(7 * 60 * 1000L, state.dailyReelsUsageMillis)
-        assertEquals(settingsRepository.dailyReelsLimitSecondOptions, state.dailyReelsLimitSecondOptions)
+        assertEquals(30 * 60, state.dailyVerticalVideosLimitSeconds)
+        assertEquals(7 * 60 * 1000L, state.dailyVerticalVideosUsageMillis)
+        assertEquals(
+            settingsRepository.dailyVerticalVideosLimitSecondOptions,
+            state.dailyVerticalVideosLimitSecondOptions
+        )
         assertEquals(settingsRepository.getSettings().appLimitRules, state.appLimitRules)
         assertEquals(installedAppsRepository.apps, state.selectableApps)
         assertEquals(settingsRepository.appLimitSecondOptions, state.appLimitSecondOptions)
-        assertTrue(30 in state.dailyReelsLimitSecondOptions)
+        assertTrue(30 in state.dailyVerticalVideosLimitSecondOptions)
     }
 
     @Test
@@ -69,13 +74,16 @@ class MoreFocusViewModelTest {
 
         viewModel.setFocusEnabled(false)
         viewModel.setInstagramReelsEnabled(false)
+        viewModel.setYouTubeShortsEnabled(false)
         viewModel.setExponentialPauseLockEnabled(false)
 
         assertFalse(settingsRepository.getSettings().focusEnabled)
         assertFalse(settingsRepository.getSettings().instagramReelsEnabled)
+        assertFalse(settingsRepository.getSettings().youtubeShortsEnabled)
         assertFalse(settingsRepository.getSettings().exponentialPauseLockEnabled)
         assertFalse(viewModel.uiState.value.focusEnabled)
         assertFalse(viewModel.uiState.value.instagramReelsEnabled)
+        assertFalse(viewModel.uiState.value.youtubeShortsEnabled)
         assertFalse(viewModel.uiState.value.exponentialPauseLockEnabled)
     }
 
@@ -88,10 +96,16 @@ class MoreFocusViewModelTest {
             installedAppsRepository = FakeInstalledAppsRepository()
         )
 
-        viewModel.setDailyReelsLimitSeconds(99)
+        viewModel.setDailyVerticalVideosLimitSeconds(99)
 
-        assertEquals(DEFAULT_DAILY_REELS_LIMIT_SECONDS, settingsRepository.getSettings().dailyReelsLimitSeconds)
-        assertEquals(DEFAULT_DAILY_REELS_LIMIT_SECONDS, viewModel.uiState.value.dailyReelsLimitSeconds)
+        assertEquals(
+            DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
+            settingsRepository.getSettings().dailyVerticalVideosLimitSeconds
+        )
+        assertEquals(
+            DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
+            viewModel.uiState.value.dailyVerticalVideosLimitSeconds
+        )
     }
 
     @Test
@@ -137,7 +151,9 @@ class MoreFocusViewModelTest {
             settings = MoreFocusSettings(
                 focusEnabled = true,
                 instagramReelsEnabled = true,
-                dailyReelsLimitSeconds = DEFAULT_DAILY_REELS_LIMIT_SECONDS,
+                youtubeShortsEnabled = true,
+                dailyVerticalVideosLimitSeconds =
+                    DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
                 appLimitRules = listOf(
                     AppLimitRule(
                         packageName = "com.video",
@@ -157,7 +173,7 @@ class MoreFocusViewModelTest {
         viewModel.setAppLimitEnabled("com.video", false)
 
         val updatedRule = viewModel.uiState.value.appLimitRules.single()
-        assertEquals(DEFAULT_DAILY_REELS_LIMIT_SECONDS, updatedRule.limitSeconds)
+        assertEquals(DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS, updatedRule.limitSeconds)
         assertFalse(updatedRule.enabled)
 
         viewModel.removeAppLimit("com.video")
@@ -169,13 +185,16 @@ class MoreFocusViewModelTest {
         private var settings: MoreFocusSettings = MoreFocusSettings(
             focusEnabled = true,
             instagramReelsEnabled = true,
-            dailyReelsLimitSeconds = DEFAULT_DAILY_REELS_LIMIT_SECONDS
+            youtubeShortsEnabled = true,
+            dailyVerticalVideosLimitSeconds = DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
         ),
-        private val dailyReelsUsageMillis: Long = 0L
+        private val dailyVerticalVideosUsageMillis: Long = 0L
     ) : MoreFocusSettingsRepository {
-        override val dailyReelsLimitSecondOptions: List<Int> = DAILY_REELS_LIMIT_SECOND_OPTIONS
+        override val dailyVerticalVideosLimitSecondOptions: List<Int> =
+            DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
-        override val appLimitSecondOptions: List<Int> = DAILY_REELS_LIMIT_SECOND_OPTIONS
+        override val appLimitSecondOptions: List<Int> =
+            DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
         override fun getSettings(): MoreFocusSettings = settings
 
@@ -183,8 +202,9 @@ class MoreFocusViewModelTest {
             BlockSettings(
                 focusEnabled = settings.focusEnabled,
                 instagramReelsEnabled = settings.instagramReelsEnabled,
-                dailyLimitSeconds = settings.dailyReelsLimitSeconds,
-                dailyUsageMillis = dailyReelsUsageMillis,
+                youtubeShortsEnabled = settings.youtubeShortsEnabled,
+                dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
+                dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
                 appLimitRules = settings.appLimitRules
             )
 
@@ -196,22 +216,26 @@ class MoreFocusViewModelTest {
             settings = settings.copy(instagramReelsEnabled = enabled)
         }
 
+        override fun setYouTubeShortsEnabled(enabled: Boolean) {
+            settings = settings.copy(youtubeShortsEnabled = enabled)
+        }
+
         override fun setExponentialPauseLockEnabled(enabled: Boolean) {
             settings = settings.copy(exponentialPauseLockEnabled = enabled)
         }
 
-        override fun setDailyReelsLimitSeconds(limitSeconds: Int) {
+        override fun setDailyVerticalVideosLimitSeconds(limitSeconds: Int) {
             settings = settings.copy(
-                dailyReelsLimitSeconds = limitSeconds.takeIf {
-                    it in dailyReelsLimitSecondOptions
-                } ?: DEFAULT_DAILY_REELS_LIMIT_SECONDS
+                dailyVerticalVideosLimitSeconds = limitSeconds.takeIf {
+                    it in dailyVerticalVideosLimitSecondOptions
+                } ?: DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
             )
         }
 
         override fun setAppLimit(packageName: String, appName: String, limitSeconds: Int) {
             val sanitizedLimit = limitSeconds.takeIf {
                 it in appLimitSecondOptions
-            } ?: DEFAULT_DAILY_REELS_LIMIT_SECONDS
+            } ?: DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
             val newRule = AppLimitRule(
                 packageName = packageName,
                 appName = appName,
@@ -230,7 +254,7 @@ class MoreFocusViewModelTest {
                         rule.copy(
                             limitSeconds = limitSeconds.takeIf {
                                 it in appLimitSecondOptions
-                            } ?: DEFAULT_DAILY_REELS_LIMIT_SECONDS
+                            } ?: DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS
                         )
                     } else {
                         rule
@@ -268,7 +292,7 @@ class MoreFocusViewModelTest {
             nowMillis: Long
         ) = Unit
 
-        override fun recordDailyReelsUsage(
+        override fun recordDailyVerticalVideosUsage(
             startedAtMillis: Long?,
             endedAtMillis: Long
         ): DailyUsageState =
@@ -295,7 +319,7 @@ class MoreFocusViewModelTest {
     }
 
     private companion object {
-        val DAILY_REELS_LIMIT_SECOND_OPTIONS = listOf(
+        val DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS = listOf(
             30,
             5 * 60,
             10 * 60,
@@ -303,6 +327,6 @@ class MoreFocusViewModelTest {
             30 * 60,
             60 * 60
         )
-        const val DEFAULT_DAILY_REELS_LIMIT_SECONDS = 15 * 60
+        const val DEFAULT_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS = 15 * 60
     }
 }

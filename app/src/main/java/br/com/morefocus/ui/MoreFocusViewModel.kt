@@ -14,10 +14,11 @@ data class MoreFocusUiState(
     val serviceEnabled: Boolean = false,
     val focusEnabled: Boolean = true,
     val instagramReelsEnabled: Boolean = true,
+    val youtubeShortsEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
-    val dailyReelsLimitSeconds: Int = 15 * 60,
-    val dailyReelsUsageMillis: Long = 0L,
-    val dailyReelsLimitSecondOptions: List<Int> = emptyList(),
+    val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
+    val dailyVerticalVideosUsageMillis: Long = 0L,
+    val dailyVerticalVideosLimitSecondOptions: List<Int> = emptyList(),
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
     val appLimitSecondOptions: List<Int> = emptyList()
@@ -45,13 +46,18 @@ class MoreFocusViewModel(
         refresh()
     }
 
+    fun setYouTubeShortsEnabled(enabled: Boolean) {
+        settingsRepository.setYouTubeShortsEnabled(enabled)
+        refresh()
+    }
+
     fun setExponentialPauseLockEnabled(enabled: Boolean) {
         settingsRepository.setExponentialPauseLockEnabled(enabled)
         refresh()
     }
 
-    fun setDailyReelsLimitSeconds(limitSeconds: Int) {
-        settingsRepository.setDailyReelsLimitSeconds(limitSeconds)
+    fun setDailyVerticalVideosLimitSeconds(limitSeconds: Int) {
+        settingsRepository.setDailyVerticalVideosLimitSeconds(limitSeconds)
         refresh()
     }
 
@@ -88,10 +94,12 @@ class MoreFocusViewModel(
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
             instagramReelsEnabled = settings.instagramReelsEnabled,
+            youtubeShortsEnabled = settings.youtubeShortsEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
-            dailyReelsLimitSeconds = settings.dailyReelsLimitSeconds,
-            dailyReelsUsageMillis = blockSettings.dailyUsageMillis,
-            dailyReelsLimitSecondOptions = settingsRepository.dailyReelsLimitSecondOptions,
+            dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
+            dailyVerticalVideosUsageMillis = blockSettings.dailyVerticalVideosUsageMillis,
+            dailyVerticalVideosLimitSecondOptions =
+                settingsRepository.dailyVerticalVideosLimitSecondOptions,
             appLimitRules = settings.appLimitRules,
             selectableApps = installedAppsRepository.getSelectableApps(),
             appLimitSecondOptions = settingsRepository.appLimitSecondOptions

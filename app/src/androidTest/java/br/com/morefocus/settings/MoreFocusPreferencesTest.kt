@@ -37,25 +37,72 @@ class MoreFocusPreferencesTest {
     }
 
     @Test
-    fun thirtySecondLimitCanBePersistedForReelsAndApps() {
-        preferences.setDailyReelsLimitSeconds(30)
+    fun thirtySecondLimitCanBePersistedForVerticalVideosAndApps() {
+        preferences.setDailyVerticalVideosLimitSeconds(30)
         preferences.setAppLimit("com.example.video", "Video", 30)
 
-        assertEquals(30, preferences.dailyReelsLimitSeconds())
+        assertEquals(30, preferences.dailyVerticalVideosLimitSeconds())
         assertEquals(30, preferences.appLimitRules().single().limitSeconds)
     }
 
     @Test
-    fun legacyMinuteValuesAreConvertedToSeconds() {
+    fun legacyAppMinuteValuesAreConvertedToSeconds() {
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putInt("daily_reels_limit_minutes", 5)
             .putStringSet("app_limit_packages", setOf("com.example.video"))
             .putInt("app_limit_minutes_com.example.video", 10)
             .commit()
 
-        assertEquals(5 * 60, preferences.dailyReelsLimitSeconds())
         assertEquals(10 * 60, preferences.appLimitRules().single().limitSeconds)
+    }
+
+    @Test
+    fun legacyReelsPreferencesDoNotMigrateToVerticalVideos() {
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("instagram_reels_enabled", false)
+            .putInt("daily_reels_limit_seconds", 5 * 60)
+            .putString("daily_reels_usage_day", "2026-07-08")
+            .putLong("daily_reels_usage_millis", 4 * 60 * 1000L)
+            .putString("pause_extension_day_instagram_reels", "2026-07-08")
+            .putInt("pause_extension_count_instagram_reels", 3)
+            .commit()
+
+        val now = millis(year = 2026, month = 7, day = 8, hour = 10)
+
+        assertTrue(preferences.isInstagramReelsEnabled())
+        assertTrue(preferences.isYouTubeShortsEnabled())
+        assertEquals(15 * 60, preferences.dailyVerticalVideosLimitSeconds())
+        assertEquals(0L, preferences.getDailyVerticalVideosUsageState(now).usedMillis)
+        assertEquals(
+            0,
+            preferences.pauseExtensionLockSeconds(PauseExtensionTarget.VerticalVideos, now)
+        )
+    }
+
+    @Test
+    fun verticalVideoTogglesCanBeChangedIndependently() {
+        preferences.setInstagramReelsEnabled(false)
+
+        assertFalse(preferences.isInstagramReelsEnabled())
+        assertTrue(preferences.isYouTubeShortsEnabled())
+
+        preferences.setYouTubeShortsEnabled(false)
+
+        assertFalse(preferences.isInstagramReelsEnabled())
+        assertFalse(preferences.isYouTubeShortsEnabled())
+    }
+
+    @Test
+    fun reelsAndShortsSessionsUseTheSameDailyCounter() {
+        val reelsStartedAt = millis(year = 2026, month = 7, day = 8, hour = 10)
+        val reelsEndedAt = reelsStartedAt + 5 * 60 * 1000L
+        val shortsEndedAt = reelsEndedAt + 10 * 60 * 1000L
+
+        preferences.recordDailyVerticalVideosUsage(reelsStartedAt, reelsEndedAt)
+        val state = preferences.recordDailyVerticalVideosUsage(reelsEndedAt, shortsEndedAt)
+
+        assertEquals(15 * 60 * 1000L, state.usedMillis)
     }
 
     @Test
@@ -73,7 +120,7 @@ class MoreFocusPreferencesTest {
         assertEquals(
             0,
             preferences.pauseExtensionLockSeconds(
-                PauseExtensionTarget.InstagramReels,
+                PauseExtensionTarget.VerticalVideos,
                 firstDay
             )
         )
@@ -86,7 +133,7 @@ class MoreFocusPreferencesTest {
     @Test
     fun disablingLockDoesNotIncrementOrEraseCurrentDayCounter() {
         val now = millis(year = 2026, month = 7, day = 8, hour = 10)
-        val target = PauseExtensionTarget.InstagramReels
+        val target = PauseExtensionTarget.VerticalVideos
         preferences.pauseFor(60_000L, target, now)
         assertEquals(3, preferences.pauseExtensionLockSeconds(target, now))
 
