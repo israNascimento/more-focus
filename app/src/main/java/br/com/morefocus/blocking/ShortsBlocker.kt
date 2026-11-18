@@ -2,24 +2,17 @@ package br.com.morefocus.blocking
 
 class ShortsBlocker {
     fun isYouTubeShorts(screen: ScreenSnapshot): Boolean {
-        if (screen.packageName != YOUTUBE_PACKAGE) return false
+        if (screen.packageName != YOUTUBE_PACKAGE_NAME) return false
 
-        return screen.root
-            ?.allNodes()
-            ?.mapNotNull { node -> node.resourceEntryName() }
-            ?.any { resourceId -> resourceId in SHORTS_VIEWER_RESOURCE_IDS }
-            ?: false
+        return hasConclusiveResourceMatch(screen.resourceIds)
     }
 
-    private fun NodeSnapshot.resourceEntryName(): String? {
-        val viewId = viewIdResourceName?.trim().orEmpty()
-        if (viewId.isBlank()) return null
-        return viewId.substringAfterLast('/')
-    }
+    fun hasConclusiveResourceMatch(resourceIds: Set<String>): Boolean =
+        resourceIds.any { it in SHORTS_VIEWER_RESOURCE_IDS }
+
+    val resourceIdsOfInterest: Set<String> = SHORTS_VIEWER_RESOURCE_IDS
 
     private companion object {
-        const val YOUTUBE_PACKAGE = "com.google.android.youtube"
-
         val SHORTS_VIEWER_RESOURCE_IDS = setOf(
             "reel_progress_bar",
             "reel_watch_fragment_root",

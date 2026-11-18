@@ -1,8 +1,9 @@
 package br.com.morefocus.blocking
 
-import android.util.Log
-
 private const val MILLIS_PER_SECOND = 1000L
+
+internal const val INSTAGRAM_PACKAGE_NAME = "com.instagram.android"
+internal const val YOUTUBE_PACKAGE_NAME = "com.google.android.youtube"
 
 data class BlockSettings(
     val focusEnabled: Boolean,
@@ -33,20 +34,26 @@ data class BlockSettings(
 data class ScreenSnapshot(
     val packageName: String?,
     val className: String?,
-    val root: NodeSnapshot?
+    val resourceIds: Set<String> = emptySet()
 )
 
-data class NodeSnapshot(
-    val text: String? = null,
-    val contentDescription: String? = null,
-    val viewIdResourceName: String? = null,
-    val className: String? = null,
-    val children: List<NodeSnapshot> = emptyList()
+data class MonitoringScope(
+    val focusEnabled: Boolean,
+    val instagramReelsEnabled: Boolean,
+    val youtubeShortsEnabled: Boolean,
+    val limitedPackages: Set<String>
 ) {
-    fun allNodes(): Sequence<NodeSnapshot> = sequence {
-        yield(this@NodeSnapshot)
-        children.forEach { child -> yieldAll(child.allNodes()) }
-    }
+    fun monitors(packageName: String?): Boolean =
+        monitorsAppLimit(packageName) || monitorsVerticalVideos(packageName)
+
+    fun monitorsAppLimit(packageName: String?): Boolean =
+        focusEnabled && packageName != null && packageName in limitedPackages
+
+    fun monitorsVerticalVideos(packageName: String?): Boolean =
+        focusEnabled && (
+            (instagramReelsEnabled && packageName == INSTAGRAM_PACKAGE_NAME) ||
+                (youtubeShortsEnabled && packageName == YOUTUBE_PACKAGE_NAME)
+        )
 }
 
 internal fun BlockSettings.isEnabledVerticalVideo(
@@ -65,8 +72,12 @@ class BlockDecisionEngine(
 
         return shouldBlock(
             settings = settings,
-            isInstagramReels = reelsDetector.isInstagramReels(screen),
-            isYouTubeShorts = shortsBlocker.isYouTubeShorts(screen),
+            isInstagramReels = settings.instagramReelsEnabled &&
+                screen.packageName == INSTAGRAM_PACKAGE_NAME &&
+                reelsDetector.isInstagramReels(screen),
+            isYouTubeShorts = settings.youtubeShortsEnabled &&
+                screen.packageName == YOUTUBE_PACKAGE_NAME &&
+                shortsBlocker.isYouTubeShorts(screen),
             nowMillis = nowMillis
         )
     }
@@ -100,75 +111,41 @@ class BlockDecisionEngine(
 
 class ReelsDetector {
     fun isInstagramReels(screen: ScreenSnapshot): Boolean {
-        if (screen.packageName != INSTAGRAM_PACKAGE) {
-            logDecision("not_instagram package=${screen.packageName}")
-            return false
-        }
+        if (screen.packageName != INSTAGRAM_PACKAGE_NAME) return false
 
-        val className = screen.className.normalized()
-        val classMarker = VIEWER_CLASS_MARKERS.firstOrNull { marker -> className.contains(marker) }
-        if (classMarker != null) {
-            logDecision("viewer_class marker=$classMarker className=$className")
-            return true
-        }
+        if (hasViewerClass(screen.className)) return true
 
-        val root = screen.root
-        if (root == null) {
-            logDecision("no_root className=$className")
-            return false
-        }
-        val nodes = root.allNodes().toList()
-        val resourceIds = nodes.mapNotNull { node -> node.resourceEntryName() }.toSet()
-        val primaryViewerIds = resourceIds.filter { it in PRIMARY_VIEWER_RESOURCE_IDS }
-
-        if (primaryViewerIds.isNotEmpty()) {
-            logDecision(
-                "primary_viewer_resource className=$className nodeCount=${nodes.size} " +
-                    "resourceIds=${resourceIds.size} matched=$primaryViewerIds"
-            )
-            return true
-        }
-
-        val mediaIds = resourceIds.filter { it in MEDIA_RESOURCE_IDS }
-        val viewerChromeIds = resourceIds.filter { it in VIEWER_CHROME_RESOURCE_IDS }
-        val sideActionIds = resourceIds.filter { it in SIDE_ACTION_RESOURCE_IDS }
-
-        if (
-            mediaIds.isNotEmpty() &&
-            (viewerChromeIds.isNotEmpty() || sideActionIds.size >= MIN_SIDE_ACTION_RESOURCE_IDS)
-        ) {
-            logDecision(
-                "viewer_resource_combo className=$className nodeCount=${nodes.size} " +
-                    "resourceIds=${resourceIds.size} media=$mediaIds chrome=$viewerChromeIds sideActions=$sideActionIds"
-            )
-            return true
-        }
-
-        logDecision(
-            "no_match className=$className nodeCount=${nodes.size} resourceIds=${resourceIds.size}"
-        )
-
-        return false
+        return hasConclusiveResourceMatch(screen.resourceIds)
     }
+
+    fun hasViewerClass(className: String?): Boolean {
+        val normalizedClassName = className.normalized()
+        return VIEWER_CLASS_MARKERS.any { marker -> normalizedClassName.contains(marker) }
+    }
+
+    fun hasConclusiveResourceMatch(resourceIds: Set<String>): Boolean {
+        if (resourceIds.any { it in PRIMARY_VIEWER_RESOURCE_IDS }) return true
+
+        val hasMedia = resourceIds.any { it in MEDIA_RESOURCE_IDS }
+        if (!hasMedia) return false
+
+        return resourceIds.any { it in VIEWER_CHROME_RESOURCE_IDS } ||
+            resourceIds.count { it in SIDE_ACTION_RESOURCE_IDS } >=
+            MIN_SIDE_ACTION_RESOURCE_IDS
+    }
+
+    val resourceIdsOfInterest: Set<String> =
+        PRIMARY_VIEWER_RESOURCE_IDS +
+            MEDIA_RESOURCE_IDS +
+            SIDE_ACTION_RESOURCE_IDS +
+            VIEWER_CHROME_RESOURCE_IDS
 
     private fun String?.normalized(): String = this
         ?.trim()
         ?.lowercase()
         .orEmpty()
 
-    private fun NodeSnapshot.resourceEntryName(): String? {
-        val viewId = viewIdResourceName.normalized()
-        if (viewId.isBlank()) return null
-        return viewId.substringAfterLast('/')
-    }
-
-    private fun logDecision(message: String) {
-        runCatching { Log.d(TAG, "isInstagramReels $message") }
-    }
-
     private companion object {
-        const val TAG = "ReelsDetector"
-        const val INSTAGRAM_PACKAGE = "com.instagram.android"
         const val MIN_SIDE_ACTION_RESOURCE_IDS = 2
 
         val VIEWER_CLASS_MARKERS = setOf(

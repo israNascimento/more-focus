@@ -1,39 +1,65 @@
 package br.com.morefocus.accessibility
 
 import android.view.accessibility.AccessibilityNodeInfo
-import br.com.morefocus.blocking.NodeSnapshot
 
-object AccessibilityNodeMapper {
-    fun from(root: AccessibilityNodeInfo?): NodeSnapshot? {
-        if (root == null) return null
+object AccessibilityNodeScanner {
+    fun resourceEntryNames(
+        root: AccessibilityNodeInfo?,
+        resourceIdsOfInterest: Set<String>,
+        hasConclusiveMatch: (Set<String>) -> Boolean
+    ): Set<String> {
+        if (root == null || resourceIdsOfInterest.isEmpty()) return emptySet()
 
+        val matches = mutableSetOf<String>()
+        val pendingNodes = ArrayDeque<TraversalFrame>()
+        pendingNodes.addLast(TraversalFrame(root, depth = 0))
         var visitedNodes = 0
 
-        fun mapNode(node: AccessibilityNodeInfo, depth: Int): NodeSnapshot {
-            visitedNodes += 1
-            val children = if (depth < MAX_DEPTH && visitedNodes < MAX_NODES) {
-                (0 until node.childCount).mapNotNull { index ->
-                    if (visitedNodes >= MAX_NODES) {
-                        null
-                    } else {
-                        node.getChild(index)?.let { child -> mapNode(child, depth + 1) }
-                    }
+        while (pendingNodes.isNotEmpty()) {
+            val frame = pendingNodes.last()
+            if (!frame.nodeVisited) {
+                frame.nodeVisited = true
+                visitedNodes += 1
+                val resourceEntryName = frame.node.viewIdResourceName.resourceEntryName()
+                if (
+                    resourceEntryName != null &&
+                    resourceEntryName in resourceIdsOfInterest
+                ) {
+                    matches.add(resourceEntryName)
+                    if (hasConclusiveMatch(matches)) return matches
                 }
-            } else {
-                emptyList()
             }
 
-            return NodeSnapshot(
-                text = node.text?.toString(),
-                contentDescription = node.contentDescription?.toString(),
-                viewIdResourceName = node.viewIdResourceName,
-                className = node.className?.toString(),
-                children = children
-            )
+            if (
+                frame.depth >= MAX_DEPTH ||
+                visitedNodes >= MAX_NODES ||
+                frame.nextChildIndex >= frame.childCount
+            ) {
+                pendingNodes.removeLast()
+                continue
+            }
+
+            val child = frame.node.getChild(frame.nextChildIndex)
+            frame.nextChildIndex += 1
+            if (child != null) pendingNodes.addLast(TraversalFrame(child, frame.depth + 1))
         }
 
-        return mapNode(root, depth = 0)
+        return matches
     }
+
+    private fun String?.resourceEntryName(): String? =
+        this
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.substringAfterLast('/')
+
+    private class TraversalFrame(
+        val node: AccessibilityNodeInfo,
+        val depth: Int,
+        val childCount: Int = node.childCount,
+        var nextChildIndex: Int = 0,
+        var nodeVisited: Boolean = false
+    )
 
     private const val MAX_DEPTH = 8
     private const val MAX_NODES = 80

@@ -3,6 +3,7 @@ package br.com.morefocus.settings
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import br.com.morefocus.blocking.PauseExtensionTarget
+import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -103,6 +104,38 @@ class MoreFocusPreferencesTest {
         val state = preferences.recordDailyVerticalVideosUsage(reelsEndedAt, shortsEndedAt)
 
         assertEquals(15 * 60 * 1000L, state.usedMillis)
+    }
+
+    @Test
+    fun blockSettingsForPackageLoadsOnlyTheCurrentAppRule() {
+        val now = millis(year = 2026, month = 7, day = 8, hour = 10)
+        preferences.setAppLimit("com.example.a", "A", 5 * 60)
+        preferences.setAppLimit("com.example.b", "B", 10 * 60)
+
+        val settings = preferences.getBlockSettingsForPackage("com.example.b", now)
+
+        assertEquals(listOf("com.example.b"), settings.appLimitRules.map { it.packageName })
+    }
+
+    @Test
+    fun monitoringScopeContainsOnlyEnabledAppLimits() {
+        preferences.setAppLimit("com.example.enabled", "Enabled", 5 * 60)
+        preferences.setAppLimit("com.example.disabled", "Disabled", 5 * 60)
+        preferences.setAppLimitEnabled("com.example.disabled", false)
+
+        val scope = preferences.getMonitoringScope()
+
+        assertEquals(setOf("com.example.enabled"), scope.limitedPackages)
+    }
+
+    @Test
+    fun repositoryInvalidatesMonitoringScopeAfterSettingsChange() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        assertTrue(repository.getMonitoringScope().instagramReelsEnabled)
+
+        repository.setInstagramReelsEnabled(false)
+
+        assertFalse(repository.getMonitoringScope().instagramReelsEnabled)
     }
 
     @Test

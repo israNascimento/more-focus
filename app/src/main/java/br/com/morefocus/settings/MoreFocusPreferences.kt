@@ -7,6 +7,7 @@ import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.DailyUsageState
 import br.com.morefocus.blocking.ExponentialPauseLockPolicy
+import br.com.morefocus.blocking.MonitoringScope
 import br.com.morefocus.blocking.PauseExtensionTarget
 
 class MoreFocusPreferences(context: Context) {
@@ -28,6 +29,37 @@ class MoreFocusPreferences(context: Context) {
             appLimitRules = appLimitRules(nowMillis)
         )
     }
+
+    fun getBlockSettingsForPackage(
+        packageName: String?,
+        nowMillis: Long = System.currentTimeMillis()
+    ): BlockSettings {
+        val dailyUsageState = getDailyVerticalVideosUsageState(nowMillis)
+        val configuredPackages = appLimitPackages()
+        val activeRule = packageName
+            ?.takeIf { it in configuredPackages }
+            ?.let { appLimitRule(it, nowMillis) }
+
+        return BlockSettings(
+            focusEnabled = preferences.getBoolean(KEY_FOCUS_ENABLED, true),
+            instagramReelsEnabled = isInstagramReelsEnabled(),
+            youtubeShortsEnabled = isYouTubeShortsEnabled(),
+            pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
+            dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
+            dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
+            appLimitRules = listOfNotNull(activeRule)
+        )
+    }
+
+    fun getMonitoringScope(): MonitoringScope =
+        MonitoringScope(
+            focusEnabled = preferences.getBoolean(KEY_FOCUS_ENABLED, true),
+            instagramReelsEnabled = isInstagramReelsEnabled(),
+            youtubeShortsEnabled = isYouTubeShortsEnabled(),
+            limitedPackages = appLimitPackages().filterTo(mutableSetOf()) { packageName ->
+                preferences.getBoolean(appEnabledKey(packageName), true)
+            }
+        )
 
     fun isFocusEnabled(): Boolean =
         preferences.getBoolean(KEY_FOCUS_ENABLED, true)
@@ -80,18 +112,7 @@ class MoreFocusPreferences(context: Context) {
 
     fun appLimitRules(nowMillis: Long = System.currentTimeMillis()): List<AppLimitRule> =
         appLimitPackages()
-            .map { packageName ->
-                val usageState = getDailyAppUsageState(packageName, nowMillis)
-                AppLimitRule(
-                    packageName = packageName,
-                    appName = preferences.getString(appNameKey(packageName), null)
-                        ?.takeIf { it.isNotBlank() }
-                        ?: packageName,
-                    limitSeconds = appLimitSeconds(packageName),
-                    usageMillis = usageState.usedMillis,
-                    enabled = preferences.getBoolean(appEnabledKey(packageName), true)
-                )
-            }
+            .map { packageName -> appLimitRule(packageName, nowMillis) }
             .sortedWith(
                 compareBy<AppLimitRule> { it.appName.lowercase() }
                     .thenBy { it.packageName }
@@ -186,8 +207,9 @@ class MoreFocusPreferences(context: Context) {
     fun getDailyVerticalVideosUsageState(
         nowMillis: Long = System.currentTimeMillis()
     ): DailyUsageState {
-        val currentState = dailyUsageClock.stateFor(storedDailyUsageState(), nowMillis)
-        saveDailyUsageState(currentState)
+        val storedState = storedDailyUsageState()
+        val currentState = dailyUsageClock.stateFor(storedState, nowMillis)
+        if (currentState != storedState) saveDailyUsageState(currentState)
         return currentState
     }
 
@@ -208,11 +230,12 @@ class MoreFocusPreferences(context: Context) {
         packageName: String,
         nowMillis: Long = System.currentTimeMillis()
     ): DailyUsageState {
+        val storedState = storedDailyAppUsageState(packageName)
         val currentState = dailyUsageClock.stateFor(
-            storedDailyAppUsageState(packageName),
+            storedState,
             nowMillis
         )
-        saveDailyAppUsageState(packageName, currentState)
+        if (currentState != storedState) saveDailyAppUsageState(packageName, currentState)
         return currentState
     }
 
@@ -255,6 +278,19 @@ class MoreFocusPreferences(context: Context) {
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .toSet()
+
+    private fun appLimitRule(packageName: String, nowMillis: Long): AppLimitRule {
+        val usageState = getDailyAppUsageState(packageName, nowMillis)
+        return AppLimitRule(
+            packageName = packageName,
+            appName = preferences.getString(appNameKey(packageName), null)
+                ?.takeIf { it.isNotBlank() }
+                ?: packageName,
+            limitSeconds = appLimitSeconds(packageName),
+            usageMillis = usageState.usedMillis,
+            enabled = preferences.getBoolean(appEnabledKey(packageName), true)
+        )
+    }
 
     private fun appLimitSeconds(packageName: String): Int {
         if (preferences.contains(appLimitSecondsKey(packageName))) {

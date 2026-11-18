@@ -30,4 +30,39 @@ class AccessibilityOverlaySourceTest {
         assertTrue(source.contains("setViewTreeLifecycleOwner"))
         assertTrue(source.contains("setViewTreeSavedStateRegistryOwner"))
     }
+
+    @Test
+    fun unmonitoredPackageReturnsBeforeNodeScanning() {
+        val source = serviceSource()
+        val earlyReturn = source.indexOf("if (!monitoringScope.monitors(packageName))")
+        val nodeScanning = source.indexOf("AccessibilityNodeScanner.resourceEntryNames")
+
+        assertTrue(earlyReturn >= 0)
+        assertTrue(earlyReturn < nodeScanning)
+    }
+
+    @Test
+    fun scheduledLimitCheckBypassesEventThrottle() {
+        val source = serviceSource()
+
+        assertTrue(source.contains("eventEvaluationThrottle.submit"))
+        assertTrue(source.contains("Runnable { evaluateCurrentScreen() }"))
+    }
+
+    @Test
+    fun overlayIsReservedBeforeItIsAddedToWindowManager() {
+        val source = serviceSource()
+        val showOverlayStart = source.indexOf("private fun showOverlay")
+        val overlayReservation = source.indexOf("overlayView = view", showOverlayStart)
+        val addToWindowManager = source.indexOf("windowManager.addView", showOverlayStart)
+
+        assertTrue(source.contains("overlayMutationInProgress"))
+        assertTrue(overlayReservation > showOverlayStart)
+        assertTrue(overlayReservation < addToWindowManager)
+    }
+
+    private fun serviceSource(): String =
+        File(
+            "src/main/java/br/com/morefocus/accessibility/MoreFocusAccessibilityService.kt"
+        ).readText()
 }

@@ -9,42 +9,21 @@ class ShortsBlockerTest {
 
     @Test
     fun detectsYouTubeShortsFromAccessibleProgressBarId() {
-        val screen = youtubeScreen(
-            root = NodeSnapshot(
-                viewIdResourceName = "com.google.android.youtube:id/reel_progress_bar"
-            )
-        )
+        val screen = youtubeScreen(resourceIds = setOf("reel_progress_bar"))
 
         assertTrue(blocker.isYouTubeShorts(screen))
     }
 
     @Test
     fun detectsYouTubeShortsFromViewerStructureId() {
-        val screen = youtubeScreen(
-            root = NodeSnapshot(
-                children = listOf(
-                    NodeSnapshot(
-                        viewIdResourceName = "com.google.android.youtube:id/reel_watch_fragment_root"
-                    )
-                )
-            )
-        )
+        val screen = youtubeScreen(resourceIds = setOf("reel_watch_fragment_root"))
 
         assertTrue(blocker.isYouTubeShorts(screen))
     }
 
     @Test
     fun doesNotDetectYouTubeShortsFromNavigationLabelOrTabId() {
-        val screen = youtubeScreen(
-            root = NodeSnapshot(
-                text = "Shorts",
-                children = listOf(
-                    NodeSnapshot(
-                        viewIdResourceName = "com.google.android.youtube:id/button_shorts_container"
-                    )
-                )
-            )
-        )
+        val screen = youtubeScreen(resourceIds = setOf("button_shorts_container"))
 
         assertFalse(blocker.isYouTubeShorts(screen))
     }
@@ -54,18 +33,16 @@ class ShortsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.example.video",
             className = null,
-            root = NodeSnapshot(
-                viewIdResourceName = "com.google.android.youtube:id/reel_progress_bar"
-            )
+            resourceIds = setOf("reel_progress_bar")
         )
 
         assertFalse(blocker.isYouTubeShorts(screen))
     }
 
-    private fun youtubeScreen(root: NodeSnapshot?): ScreenSnapshot =
+    private fun youtubeScreen(resourceIds: Set<String>): ScreenSnapshot =
         ScreenSnapshot(
             packageName = "com.google.android.youtube",
             className = null,
-            root = root
+            resourceIds = resourceIds
         )
 }

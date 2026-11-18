@@ -3,6 +3,7 @@ package br.com.morefocus.data
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageState
+import br.com.morefocus.blocking.MonitoringScope
 import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.settings.MoreFocusPreferences
 
@@ -23,6 +24,30 @@ interface MoreFocusSettingsRepository {
     fun getSettings(): MoreFocusSettings
 
     fun getBlockSettings(nowMillis: Long = System.currentTimeMillis()): BlockSettings
+
+    fun getBlockSettingsForPackage(
+        packageName: String?,
+        nowMillis: Long = System.currentTimeMillis()
+    ): BlockSettings {
+        val settings = getBlockSettings(nowMillis)
+        return settings.copy(
+            appLimitRules = settings.appLimitRules.filter { rule ->
+                rule.packageName == packageName
+            }
+        )
+    }
+
+    fun getMonitoringScope(): MonitoringScope {
+        val settings = getBlockSettings()
+        return MonitoringScope(
+            focusEnabled = settings.focusEnabled,
+            instagramReelsEnabled = settings.instagramReelsEnabled,
+            youtubeShortsEnabled = settings.youtubeShortsEnabled,
+            limitedPackages = settings.appLimitRules
+                .filter { it.enabled }
+                .mapTo(mutableSetOf()) { it.packageName }
+        )
+    }
 
     fun setFocusEnabled(enabled: Boolean)
 
@@ -68,6 +93,9 @@ interface MoreFocusSettingsRepository {
 class SharedPreferencesMoreFocusSettingsRepository(
     private val preferences: MoreFocusPreferences
 ) : MoreFocusSettingsRepository {
+    @Volatile
+    private var cachedMonitoringScope: MonitoringScope? = null
+
     override val dailyVerticalVideosLimitSecondOptions: List<Int> =
         MoreFocusPreferences.DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
@@ -87,16 +115,29 @@ class SharedPreferencesMoreFocusSettingsRepository(
     override fun getBlockSettings(nowMillis: Long): BlockSettings =
         preferences.getBlockSettings(nowMillis)
 
+    override fun getBlockSettingsForPackage(
+        packageName: String?,
+        nowMillis: Long
+    ): BlockSettings = preferences.getBlockSettingsForPackage(packageName, nowMillis)
+
+    override fun getMonitoringScope(): MonitoringScope =
+        cachedMonitoringScope ?: preferences.getMonitoringScope().also { scope ->
+            cachedMonitoringScope = scope
+        }
+
     override fun setFocusEnabled(enabled: Boolean) {
         preferences.setFocusEnabled(enabled)
+        invalidateMonitoringScope()
     }
 
     override fun setInstagramReelsEnabled(enabled: Boolean) {
         preferences.setInstagramReelsEnabled(enabled)
+        invalidateMonitoringScope()
     }
 
     override fun setYouTubeShortsEnabled(enabled: Boolean) {
         preferences.setYouTubeShortsEnabled(enabled)
+        invalidateMonitoringScope()
     }
 
     override fun setExponentialPauseLockEnabled(enabled: Boolean) {
@@ -109,6 +150,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun setAppLimit(packageName: String, appName: String, limitSeconds: Int) {
         preferences.setAppLimit(packageName, appName, limitSeconds)
+        invalidateMonitoringScope()
     }
 
     override fun setAppLimitSeconds(packageName: String, limitSeconds: Int) {
@@ -117,10 +159,12 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun setAppLimitEnabled(packageName: String, enabled: Boolean) {
         preferences.setAppLimitEnabled(packageName, enabled)
+        invalidateMonitoringScope()
     }
 
     override fun removeAppLimit(packageName: String) {
         preferences.removeAppLimit(packageName)
+        invalidateMonitoringScope()
     }
 
     override fun pauseExtensionLockSeconds(
@@ -148,4 +192,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
         endedAtMillis: Long
     ): DailyUsageState =
         preferences.recordDailyAppUsage(packageName, startedAtMillis, endedAtMillis)
+
+    private fun invalidateMonitoringScope() {
+        cachedMonitoringScope = null
+    }
 }

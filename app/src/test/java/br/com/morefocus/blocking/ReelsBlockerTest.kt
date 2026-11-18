@@ -108,14 +108,7 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "com.instagram.clips.viewer.ClipsViewerActivity",
-            root = NodeSnapshot(
-                text = "Reels",
-                children = listOf(
-                    NodeSnapshot(contentDescription = "Curtir"),
-                    NodeSnapshot(contentDescription = "Comentar"),
-                    NodeSnapshot(contentDescription = "Compartilhar")
-                )
-            )
+            resourceIds = emptySet()
         )
 
         assertTrue(
@@ -226,7 +219,7 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.google.android.youtube",
             className = "com.google.android.apps.youtube.app.watchwhile.MainActivity",
-            root = NodeSnapshot(text = "Início")
+            resourceIds = emptySet()
         )
 
         assertFalse(
@@ -292,14 +285,12 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "androidx.recyclerview.widget.RecyclerView",
-            root = NodeSnapshot(
-                viewIdResourceName = "com.instagram.android:id/clips_viewer_container",
-                children = listOf(
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_video_player"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_like_button"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_comments_button"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_share_button")
-                )
+            resourceIds = setOf(
+                "clips_viewer_container",
+                "clips_video_player",
+                "clips_ufi_like_button",
+                "clips_ufi_comments_button",
+                "clips_ufi_share_button"
             )
         )
 
@@ -317,12 +308,10 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "android.view.ViewGroup",
-            root = NodeSnapshot(
-                children = listOf(
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_viewer_video_layout"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_like_button"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_ufi_comments_button")
-                )
+            resourceIds = setOf(
+                "clips_viewer_video_layout",
+                "clips_ufi_like_button",
+                "clips_ufi_comments_button"
             )
         )
 
@@ -340,7 +329,7 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "com.instagram.mainactivity.InstagramMainActivity",
-            root = NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_tab")
+            resourceIds = setOf("clips_tab")
         )
 
         assertFalse(
@@ -357,12 +346,10 @@ class ReelsBlockerTest {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "com.instagram.mainactivity.InstagramMainActivity",
-            root = NodeSnapshot(
-                children = listOf(
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/like_button"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/comment_button"),
-                    NodeSnapshot(viewIdResourceName = "com.instagram.android:id/share_button")
-                )
+            resourceIds = setOf(
+                "like_button",
+                "comment_button",
+                "share_button"
             )
         )
 
@@ -395,33 +382,28 @@ class ReelsBlockerTest {
         ScreenSnapshot(
             packageName = "com.instagram.android",
             className = null,
-            root = NodeSnapshot(
-                viewIdResourceName = "com.instagram.android:id/clips_viewer_container",
-                children = listOf(NodeSnapshot(viewIdResourceName = "com.instagram.android:id/clips_video_player"))
-            )
+            resourceIds = setOf("clips_viewer_container", "clips_video_player")
         )
 
     private fun youtubeShortsScreen(): ScreenSnapshot =
         ScreenSnapshot(
             packageName = "com.google.android.youtube",
             className = "com.google.android.apps.youtube.app.watchwhile.MainActivity",
-            root = NodeSnapshot(
-                viewIdResourceName = "com.google.android.youtube:id/reel_progress_bar"
-            )
+            resourceIds = setOf("reel_progress_bar")
         )
 
     private fun instagramScreen(label: String): ScreenSnapshot =
         ScreenSnapshot(
             packageName = "com.instagram.android",
             className = "com.instagram.mainactivity.InstagramMainActivity",
-            root = NodeSnapshot(text = label)
+            resourceIds = emptySet()
         )
 
     private fun appScreen(packageName: String): ScreenSnapshot =
         ScreenSnapshot(
             packageName = packageName,
             className = null,
-            root = null
+            resourceIds = emptySet()
         )
 
     private fun appLimitRule(
