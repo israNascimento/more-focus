@@ -9,27 +9,37 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import br.com.morefocus.R
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
+import br.com.morefocus.blocking.isYouTubeFeedShort
 import kotlin.math.abs
 
-internal class FeedReelMask(private val context: Context, private val windowManager: WindowManager) {
+internal class FeedVideoMask(private val context: Context, private val windowManager: WindowManager) {
     private var tabBounds: Rect? = null
     private val tabBlocker = View(context).apply {
         setBackgroundColor(Color.argb(104, 128, 128, 128))
-        contentDescription = context.getString(R.string.reels_tab_blocked)
         isClickable = true
         isEnabled = false
     }
-    private val covers = mutableListOf<ReelCover>()
+    private val covers = mutableListOf<VideoCover>()
 
-    fun update(root: AccessibilityNodeInfo, hideReels: Boolean, blockTaps: Boolean) {
+    fun update(root: AccessibilityNodeInfo, hideVideos: Boolean, blockTaps: Boolean) {
+        when (root.packageName?.toString()) {
+            INSTAGRAM_PACKAGE_NAME -> updateInstagram(root, hideVideos, blockTaps)
+            YOUTUBE_PACKAGE_NAME -> updateYouTube(root, hideVideos, blockTaps)
+            else -> clear()
+        }
+    }
+
+    private fun updateInstagram(root: AccessibilityNodeInfo, hideReels: Boolean, blockTaps: Boolean) {
         val tab = if (hideReels) root.nodes("clips_tab").firstOrNull {
             it.isVisibleToUser && it.isClickable
         } else null
-        updateTabBlocker(tab?.bounds()?.takeUnless { it.isEmpty })
+        updateTabBlocker(tab?.bounds()?.takeUnless { it.isEmpty }, R.string.reels_tab_blocked)
 
         val feedBar = root.nodes("main_feed_action_bar").firstOrNull()
         val feed = root.nodes("refreshable_container").firstOrNull { it.isVisibleToUser }
@@ -50,6 +60,52 @@ internal class FeedReelMask(private val context: Context, private val windowMana
         removeExtraCovers(count)
     }
 
+    private fun updateYouTube(root: AccessibilityNodeInfo, hideShorts: Boolean, blockTaps: Boolean) {
+        val pivot = root.nodes("pivot_bar").firstOrNull { it.isVisibleToUser }
+        val tab = pivot?.findAccessibilityNodeInfosByText("Shorts")?.firstOrNull {
+            it.isVisibleToUser && it.isClickable && it.contentDescription?.toString() == "Shorts"
+        }
+        updateTabBlocker(tab?.takeIf { hideShorts }?.bounds(), R.string.shorts_tab_blocked)
+
+        // The bottom bar disappears on upward scroll. Home's browse pager stays in the window.
+        val browse = root.nodes("browse_fragment_layout_coordinator_layout").firstOrNull { it.isVisibleToUser }
+        val pager = browse?.nodes("view_pager")?.firstOrNull { it.isVisibleToUser }
+        val inFeed = pivot == null || tab?.parent?.getChild(0)?.isSelected == true
+        val feed = if (inFeed) pager?.nodes("results")?.firstOrNull {
+            it.isVisibleToUser && !it.bounds().isEmpty
+        } else null
+        var count = 0
+        if (feed != null) {
+            val viewport = feed.bounds()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val metrics = windowManager.currentWindowMetrics
+                val content = Rect(metrics.bounds)
+                content.inset(metrics.windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                ))
+                if (!viewport.intersect(content)) viewport.setEmpty()
+            } else {
+                val statusBar = root.nodes("global_status_bar_view").firstOrNull { it.isVisibleToUser }
+                if (statusBar != null) viewport.top = maxOf(viewport.top, statusBar.bounds().bottom)
+            }
+            // YouTube's virtual card buttons expose their playback action in the description,
+            // but its accessibility provider does not return them in a text search.
+            val pending = ArrayDeque<AccessibilityNodeInfo>()
+            pending.add(feed)
+            while (pending.isNotEmpty()) {
+                val node = pending.removeLast()
+                val bounds = node.bounds()
+                if (!node.isVisibleToUser || !bounds.intersect(viewport)) continue
+                if (node.isClickable && isYouTubeFeedShort(node.contentDescription)) {
+                    updateCover(count++, node, bounds, hideShorts, hideShorts || blockTaps)
+                } else {
+                    for (index in node.childCount - 1 downTo 0) node.getChild(index)?.let(pending::addLast)
+                }
+            }
+        }
+        removeExtraCovers(count)
+    }
+
     fun clear() {
         updateTabBlocker(null)
         removeExtraCovers(0)
@@ -60,25 +116,26 @@ internal class FeedReelMask(private val context: Context, private val windowMana
     }
 
     private fun updateCover(
-        index: Int, media: AccessibilityNodeInfo, bounds: Rect, hideReels: Boolean, blockTaps: Boolean
+        index: Int, media: AccessibilityNodeInfo, bounds: Rect, hideVideos: Boolean, blockTaps: Boolean
     ) {
-        val cover = covers.getOrNull(index) ?: ReelCover(context).also(covers::add)
+        val cover = covers.getOrNull(index) ?: VideoCover(context).also(covers::add)
         val wasTouchable = cover.media != null
         cover.media = media.takeIf { blockTaps }
-        val color = if (hideReels) Color.BLACK else Color.TRANSPARENT
+        val color = if (hideVideos) Color.BLACK else Color.TRANSPARENT
         if (cover.color != color) {
             cover.setBackgroundColor(color)
             cover.color = color
         }
         if (bounds == cover.bounds && wasTouchable == blockTaps) return
-        val params = overlayParams(bounds, "MoreFocus Feed Reel")
+        val params = overlayParams(bounds, "MoreFocus Feed Video")
         if (!blockTaps) params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         if (cover.bounds == null) windowManager.addView(cover, params)
         else windowManager.updateViewLayout(cover, params)
         cover.bounds = bounds
     }
 
-    private fun updateTabBlocker(bounds: Rect?) {
+    private fun updateTabBlocker(bounds: Rect?, description: Int = 0) {
+        if (bounds != null) tabBlocker.contentDescription = context.getString(description)
         if (bounds == tabBounds) return
         val wasVisible = tabBounds != null
         tabBounds = bounds
@@ -86,7 +143,7 @@ internal class FeedReelMask(private val context: Context, private val windowMana
             windowManager.removeViewImmediate(tabBlocker)
             return
         }
-        val params = overlayParams(bounds, "MoreFocus Reels Tab")
+        val params = overlayParams(bounds, "MoreFocus Video Tab")
         if (wasVisible) windowManager.updateViewLayout(tabBlocker, params)
         else windowManager.addView(tabBlocker, params)
     }
@@ -108,11 +165,11 @@ internal class FeedReelMask(private val context: Context, private val windowMana
     }
 
     private fun AccessibilityNodeInfo.nodes(id: String): List<AccessibilityNodeInfo> =
-        findAccessibilityNodeInfosByViewId("$INSTAGRAM_PACKAGE_NAME:id/$id")
+        findAccessibilityNodeInfosByViewId("${packageName}:id/$id")
 
     private fun AccessibilityNodeInfo.bounds() = Rect().also(::getBoundsInScreen)
 
-    private class ReelCover(context: Context) : View(context) {
+    private class VideoCover(context: Context) : View(context) {
         var bounds: Rect? = null
         var color = Color.TRANSPARENT
         var media: AccessibilityNodeInfo? = null

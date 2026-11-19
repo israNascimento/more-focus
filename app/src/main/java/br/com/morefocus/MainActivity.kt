@@ -139,7 +139,8 @@ private fun MoreFocusApp(
         onShowUsageNotificationChange = onShowUsageNotificationChange,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
         onHideFeedReelsChange = viewModel::setHideFeedReels,
-        onHardBlockReelsChange = viewModel::setHardBlockReels,
+        onHideFeedShortsChange = viewModel::setHideFeedShorts,
+        onHardBlockVerticalVideosChange = viewModel::setHardBlockVerticalVideos,
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
         onDailyVerticalVideosLimitSecondsChange =
@@ -168,7 +169,8 @@ internal fun MoreFocusScreen(
     onShowUsageNotificationChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
     onHideFeedReelsChange: (Boolean) -> Unit,
-    onHardBlockReelsChange: (Boolean) -> Unit,
+    onHideFeedShortsChange: (Boolean) -> Unit,
+    onHardBlockVerticalVideosChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
@@ -220,6 +222,7 @@ internal fun MoreFocusScreen(
                     uiState = uiState,
                     onFocusEnabledChange = onFocusEnabledChange,
                     onShowUsageNotificationChange = onShowUsageNotificationChange,
+                    onHardBlockVerticalVideosChange = onHardBlockVerticalVideosChange,
                     onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
                     onLimitSelected = onDailyVerticalVideosLimitSecondsChange,
                     onOpenApp = { navController.navigate(it.route) },
@@ -242,13 +245,10 @@ internal fun MoreFocusScreen(
                         when (app) {
                             FeaturedApp.Instagram -> InstagramPreferences(
                                 uiState, onInstagramReelsEnabledChange,
-                                onHideFeedReelsChange, onHardBlockReelsChange
+                                onHideFeedReelsChange
                             )
-                            FeaturedApp.YouTube -> ToggleRow(
-                                stringResource(R.string.preference_youtube_shorts_enabled_title),
-                                uiState.youtubeShortsEnabled,
-                                onYouTubeShortsEnabledChange,
-                                stringResource(R.string.shared_limit_note)
+                            FeaturedApp.YouTube -> YouTubePreferences(
+                                uiState, onYouTubeShortsEnabledChange, onHideFeedShortsChange
                             )
                         }
                     }
@@ -602,7 +602,8 @@ private fun MoreFocusScreenPreview() {
             onShowUsageNotificationChange = {},
             onInstagramReelsEnabledChange = {},
             onHideFeedReelsChange = {},
-            onHardBlockReelsChange = {},
+            onHideFeedShortsChange = {},
+            onHardBlockVerticalVideosChange = {},
             onYouTubeShortsEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
             onDailyVerticalVideosLimitSecondsChange = {},

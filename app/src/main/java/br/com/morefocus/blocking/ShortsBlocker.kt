@@ -14,10 +14,16 @@ class ShortsBlocker {
 
     private companion object {
         val SHORTS_VIEWER_RESOURCE_IDS = setOf(
-            "reel_progress_bar",
             "reel_watch_fragment_root",
+            "reel_progress_bar",
             "reel_watch_pager_view_pager",
             "reel_player_page_container"
         )
     }
 }
+
+// A feed card's accessibility label ends with the playback action, after the video title.
+internal fun isYouTubeFeedShort(description: CharSequence?): Boolean =
+    description?.toString()?.substringAfterLast(" - ", "")?.trim()?.lowercase() in SHORT_PLAYBACK_ACTIONS
+
+private val SHORT_PLAYBACK_ACTIONS = setOf("ver o shorts", "ver o short", "play short", "watch short")

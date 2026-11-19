@@ -33,8 +33,8 @@ import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
 import br.com.morefocus.blocking.ShortsBlocker
+import br.com.morefocus.blocking.VerticalVideoAction
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
-import br.com.morefocus.blocking.isEnabledVerticalVideo
 import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
@@ -48,10 +48,10 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private lateinit var settingsRepository: MoreFocusSettingsRepository
     private lateinit var windowManager: WindowManager
-    private var watchingFeedReels = false
-    private var blockFeedReelTaps = false
-    private var nextReelBackAtUptime = 0L
-    private var feedReelMask: FeedReelMask? = null
+    private var watchingVideoFeed = false
+    private var blockedFeedPackage: String? = null
+    private var nextVideoBackAtUptime = 0L
+    private var feedVideoMask: FeedVideoMask? = null
     private var overlayView: View? = null
     private var overlayMessage: OverlayMessage? = null
     private var overlayMutationInProgress = false
@@ -92,9 +92,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         settingsRepository = container.settingsRepository
         container.dailyUsageNotification.start()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        feedReelMask = FeedReelMask(this, windowManager)
+        feedVideoMask = FeedVideoMask(this, windowManager)
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
-        updateFeedReelMask(null)
+        updateFeedVideoMask(null)
         evaluateCurrentScreen()
     }
 
@@ -110,14 +110,16 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             val appRoot = windows.firstOrNull {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
             }?.root ?: return
-            if (appRoot.packageName == INSTAGRAM_PACKAGE_NAME && visibleHomeMarker(appRoot) == null) return
+            if (appRoot.packageName == INSTAGRAM_PACKAGE_NAME &&
+                visibleResourceId(appRoot, reelsDetector.homeFeedResourceIds) == null
+            ) return
             hideOverlay()
-            updateFeedReelMask(appRoot.packageName?.toString())
+            updateFeedVideoMask(appRoot.packageName?.toString())
             evaluateCurrentScreen(AccessibilityEventContext(appRoot.packageName?.toString(), null))
             return
         }
         val eventPackage = event?.packageName?.toString()
-        if (updateFeedReelMask(eventPackage) && eventPackage == packageName) return
+        if (updateFeedVideoMask(eventPackage) && eventPackage == packageName) return
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
         eventEvaluationThrottle.submit(
             AccessibilityEventContext(
@@ -127,32 +129,32 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         )
     }
 
-    private fun updateFeedReelMask(eventPackage: String?): Boolean {
+    private fun updateFeedVideoMask(eventPackage: String?): Boolean {
         val scope = settingsRepository.getMonitoringScope()
-        val checkWindow = eventPackage == INSTAGRAM_PACKAGE_NAME || eventPackage == null || watchingFeedReels
-        val hideReels = scope.masksFeedReels(INSTAGRAM_PACKAGE_NAME)
-        val blockTaps = blockFeedReelTaps && scope.monitorsVerticalVideos(INSTAGRAM_PACKAGE_NAME)
-        val root = if ((hideReels || blockTaps) && checkWindow) {
-            foregroundRoot()
-        } else null
-        val watch = root?.packageName == INSTAGRAM_PACKAGE_NAME
-        if (watch != watchingFeedReels) {
-            watchingFeedReels = watch
+        val checkWindow = eventPackage == null || watchingVideoFeed ||
+            scope.masksFeedVideos(eventPackage) || (blockedFeedPackage != null && eventPackage == blockedFeedPackage)
+        val root = if (checkWindow) foregroundRoot() else null
+        val activePackage = root?.packageName?.toString()
+        val hideVideos = scope.masksFeedVideos(activePackage)
+        val blockTaps = activePackage == blockedFeedPackage && scope.monitorsVerticalVideos(activePackage)
+        val watch = hideVideos || blockTaps
+        if (watch != watchingVideoFeed) {
+            watchingVideoFeed = watch
             val info = serviceInfo
             val scroll = AccessibilityEvent.TYPE_VIEW_SCROLLED
             info.eventTypes = if (watch) info.eventTypes or scroll else info.eventTypes and scroll.inv()
             info.notificationTimeout = if (watch) 32L else EVENT_EVALUATION_INTERVAL_MILLIS
             serviceInfo = info
         }
-        if (watch) feedReelMask?.update(root, hideReels, blockTaps)
-        else feedReelMask?.clear()
+        if (watch && root != null) feedVideoMask?.update(root, hideVideos, blockTaps)
+        else feedVideoMask?.clear()
         return watch
     }
 
     private fun foregroundRoot(): AccessibilityNodeInfo? {
         val root = rootInActiveWindow
-        if (watchingFeedReels && root?.packageName == packageName) {
-            // A touch on a Reel cover can make our overlay the active window.
+        if (watchingVideoFeed && root?.packageName == packageName) {
+            // A touch on a feed cover can make our overlay the active window.
             return windows.firstOrNull {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
             }?.root
@@ -184,8 +186,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             ?.takeIf { it.isNotBlank() }
             ?: activeRoot()?.packageName?.toString()
         // Updating the notification can emit status bar events while the video is still in focus.
-        val trackedVideoPackage = verticalVideosSessionPackageName
-            ?: INSTAGRAM_PACKAGE_NAME.takeIf { blockFeedReelTaps }
+        val trackedVideoPackage = verticalVideosSessionPackageName ?: blockedFeedPackage
         if (trackedVideoPackage != null && packageName != trackedVideoPackage &&
             activeRoot()?.packageName?.toString() == trackedVideoPackage
         ) return
@@ -193,11 +194,11 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val monitoringScope = settingsRepository.getMonitoringScope()
 
         if (!monitoringScope.monitors(packageName)) {
-            if (blockFeedReelTaps) {
-                blockFeedReelTaps = false
-                updateFeedReelMask(packageName)
+            if (blockedFeedPackage != null) {
+                blockedFeedPackage = null
+                updateFeedVideoMask(packageName)
             }
-            nextReelBackAtUptime = 0L
+            nextVideoBackAtUptime = 0L
             finishTracking(nowMillis)
             hideOverlay()
             return
@@ -210,45 +211,32 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             nowMillis = nowMillis
         )
         val settings = storedSettings.withActiveUsage(packageName, nowMillis)
-        val hardBlock = packageName == INSTAGRAM_PACKAGE_NAME && settings.hardBlocksInstagramReels
-        if (hardBlock != blockFeedReelTaps) {
-            blockFeedReelTaps = hardBlock
-            updateFeedReelMask(packageName)
+        val blockFeedFor = packageName?.takeIf {
+            settings.hardVerticalVideoLimitReached && monitoringScope.monitorsVerticalVideos(it)
+        }
+        if (blockFeedFor != blockedFeedPackage) {
+            blockedFeedPackage = blockFeedFor
+            updateFeedVideoMask(packageName)
         }
 
-        val isInstagramReels = monitoringScope.instagramReelsEnabled &&
-            packageName == INSTAGRAM_PACKAGE_NAME && isCurrentInstagramViewer(activeRoot(), className)
-        if (hardBlock && isInstagramReels) {
+        val isEnabledVerticalVideo = monitoringScope.monitorsVerticalVideos(packageName) &&
+            activeRoot()?.let { root ->
+                root.packageName?.toString() == packageName &&
+                    decisionEngine.isEnabledVerticalVideo(settings, videoScreen(root, className))
+            } == true
+        val videoAction = decisionEngine.verticalVideoAction(settings, isEnabledVerticalVideo, nowMillis)
+        if (videoAction == VerticalVideoAction.GO_BACK) {
             finishTracking(nowMillis)
             val uptime = SystemClock.uptimeMillis()
-            if (uptime >= nextReelBackAtUptime) {
+            if (uptime >= nextVideoBackAtUptime) {
                 performGlobalAction(GLOBAL_ACTION_BACK)
-                nextReelBackAtUptime = uptime + REEL_BACK_RETRY_MILLIS
+                nextVideoBackAtUptime = uptime + VIDEO_BACK_RETRY_MILLIS
             }
             // Recheck the foreground after navigation before issuing another Back.
-            scheduleEvaluation(nextReelBackAtUptime - uptime)
+            scheduleEvaluation(nextVideoBackAtUptime - uptime)
             return
         }
-        nextReelBackAtUptime = 0L
-        val isYouTubeShorts = if (
-            monitoringScope.youtubeShortsEnabled &&
-            packageName == YOUTUBE_PACKAGE_NAME
-        ) {
-            val resourceIds = AccessibilityNodeScanner.resourceEntryNames(
-                root = activeRoot(),
-                resourceIdsOfInterest = shortsBlocker.resourceIdsOfInterest,
-                hasConclusiveMatch = shortsBlocker::hasConclusiveResourceMatch
-            )
-            shortsBlocker.isYouTubeShorts(
-                ScreenSnapshot(packageName, className, resourceIds)
-            )
-        } else {
-            false
-        }
-        val isEnabledVerticalVideo = settings.isEnabledVerticalVideo(
-            isInstagramReels = isInstagramReels,
-            isYouTubeShorts = isYouTubeShorts
-        )
+        nextVideoBackAtUptime = 0L
         val blockedAppRule = decisionEngine.blockedAppLimitRule(
             settings = settings,
             packageName = packageName,
@@ -271,14 +259,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             return
         }
 
-        val shouldBlockVerticalVideos = decisionEngine.shouldBlock(
-            settings = settings,
-            isInstagramReels = isInstagramReels,
-            isYouTubeShorts = isYouTubeShorts,
-            nowMillis = nowMillis
-        )
-
-        if (shouldBlockVerticalVideos) {
+        if (videoAction == VerticalVideoAction.SHOW_WARNING) {
             val trackedAppRule = settings.appLimitRuleFor(packageName)
             flushActiveUsage(nowMillis)
             stopActiveSessions()
@@ -304,39 +285,45 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         }
     }
 
-    private fun visibleHomeMarker(root: AccessibilityNodeInfo): String? {
+    private fun visibleResourceId(root: AccessibilityNodeInfo, ids: Set<String>): String? {
         val viewport = Rect().also(root::getBoundsInScreen)
-        return reelsDetector.homeFeedResourceIds.firstOrNull { id ->
-            root.findAccessibilityNodeInfosByViewId("$INSTAGRAM_PACKAGE_NAME:id/$id").any { node ->
+        return ids.firstOrNull { id ->
+            root.findAccessibilityNodeInfosByViewId("${root.packageName}:id/$id").any { node ->
                 node.isVisibleToUser && Rect.intersects(viewport, Rect().also(node::getBoundsInScreen))
             }
         }
     }
 
-    private fun isCurrentInstagramViewer(root: AccessibilityNodeInfo?, eventClass: String?): Boolean {
-        if (root?.packageName != INSTAGRAM_PACKAGE_NAME) return false
+    private fun videoScreen(root: AccessibilityNodeInfo, eventClass: String?): ScreenSnapshot {
+        val packageName = root.packageName?.toString()
         val className = eventClass ?: root.className?.toString()
-        val homeMarker = visibleHomeMarker(root)
-        val ids = when {
-            homeMarker != null -> setOf(homeMarker)
-            reelsDetector.hasViewerClass(className) -> emptySet()
-            else -> AccessibilityNodeScanner.resourceEntryNames(
-                root, reelsDetector.resourceIdsOfInterest, visibleOnly = true,
-                hasConclusiveMatch = reelsDetector::hasConclusiveResourceMatch
-            )
+        val ids = when (packageName) {
+            INSTAGRAM_PACKAGE_NAME -> {
+                val homeMarker = visibleResourceId(root, reelsDetector.homeFeedResourceIds)
+                when {
+                    homeMarker != null -> setOf(homeMarker)
+                    reelsDetector.hasViewerClass(className) -> emptySet()
+                    else -> AccessibilityNodeScanner.resourceEntryNames(
+                        root, reelsDetector.resourceIdsOfInterest, visibleOnly = true,
+                        hasConclusiveMatch = reelsDetector::hasConclusiveResourceMatch
+                    )
+                }
+            }
+            YOUTUBE_PACKAGE_NAME -> setOfNotNull(visibleResourceId(root, shortsBlocker.resourceIdsOfInterest))
+            else -> emptySet()
         }
-        return reelsDetector.isInstagramReels(ScreenSnapshot(INSTAGRAM_PACKAGE_NAME, className, ids))
+        return ScreenSnapshot(packageName, className, ids)
     }
 
     override fun onInterrupt() {
-        feedReelMask?.clear()
+        feedVideoMask?.clear()
         stopTracking(System.currentTimeMillis())
         hideOverlay()
     }
 
     override fun onDestroy() {
         (application as MoreFocusApplication).appContainer.dailyUsageNotification.stop()
-        feedReelMask?.clear()
+        feedVideoMask?.clear()
         stopTracking(System.currentTimeMillis())
         hideOverlay()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
@@ -344,7 +331,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun showOverlay(message: OverlayMessage) {
-        feedReelMask?.clear()
+        feedVideoMask?.clear()
         val messageWithPauseLock = message.copy(
             pauseLockSeconds = settingsRepository.pauseExtensionLockSeconds(
                 message.pauseExtensionTarget
@@ -417,7 +404,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                             }
                             hideOverlay()
                             scheduleUsageFlush()
-                            scheduleEvaluation(PAUSE_DURATION_MILLIS)
+                            scheduleEvaluation(MIN_SCHEDULE_DELAY_MILLIS)
                         },
                         onExitClick = {
                             stopTracking(System.currentTimeMillis())
@@ -660,7 +647,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val isTrackingApp = settings.focusEnabled && settings.appLimitRuleFor(packageName) != null
         val isTrackingVerticalVideos = settings.focusEnabled && isEnabledVerticalVideo
 
-        if (!isTrackingApp && !isTrackingVerticalVideos && !blockFeedReelTaps) {
+        if (!isTrackingApp && !isTrackingVerticalVideos && blockedFeedPackage == null) {
             cancelScheduledCheck()
             return
         }
@@ -675,7 +662,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             .takeIf {
                 isTrackingVerticalVideos &&
                     (settings.pauseUntilMillis <= nowMillis ||
-                        (packageName == INSTAGRAM_PACKAGE_NAME && settings.hardBlockReels)) &&
+                        settings.hardBlockVerticalVideos) &&
                     it > 0L
             }
         val resetDelayMillis = dailyUsageClock.millisUntilNextDay(nowMillis)
@@ -711,7 +698,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         const val PAUSE_DURATION_MILLIS = 1 * 60 * 1000L
         const val MIN_SCHEDULE_DELAY_MILLIS = 250L
         const val EVENT_EVALUATION_INTERVAL_MILLIS = 250L
-        const val REEL_BACK_RETRY_MILLIS = 1_000L
+        const val VIDEO_BACK_RETRY_MILLIS = 1_000L
         const val USAGE_FLUSH_INTERVAL_MILLIS = 5 * 1000L
     }
 }

@@ -15,8 +15,9 @@ data class MoreFocusSettings(
     val dailyVerticalVideosLimitSeconds: Int,
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val hideFeedReels: Boolean = false,
+    val hideFeedShorts: Boolean = false,
     val showUsageNotification: Boolean = true,
-    val hardBlockReels: Boolean = false
+    val hardBlockVerticalVideos: Boolean = false
 )
 
 interface MoreFocusSettingsRepository {
@@ -47,6 +48,7 @@ interface MoreFocusSettingsRepository {
             instagramReelsEnabled = settings.instagramReelsEnabled,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             hideFeedReels = settings.hideFeedReels,
+            hideFeedShorts = settings.hideFeedShorts,
             limitedPackages = settings.appLimitRules
                 .filter { it.enabled }
                 .mapTo(mutableSetOf()) { it.packageName }
@@ -61,7 +63,9 @@ interface MoreFocusSettingsRepository {
 
     fun setHideFeedReels(enabled: Boolean)
 
-    fun setHardBlockReels(enabled: Boolean)
+    fun setHideFeedShorts(enabled: Boolean)
+
+    fun setHardBlockVerticalVideos(enabled: Boolean)
 
     fun setYouTubeShortsEnabled(enabled: Boolean)
 
@@ -121,7 +125,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules(),
             hideFeedReels = preferences.hideFeedReels(),
-            hardBlockReels = preferences.hardBlockReels(),
+            hideFeedShorts = preferences.hideFeedShorts(),
+            hardBlockVerticalVideos = preferences.hardBlockVerticalVideos(),
             showUsageNotification = preferences.showUsageNotification()
         )
 
@@ -155,7 +160,12 @@ class SharedPreferencesMoreFocusSettingsRepository(
         invalidateMonitoringScope()
     }
 
-    override fun setHardBlockReels(enabled: Boolean) = preferences.setHardBlockReels(enabled)
+    override fun setHideFeedShorts(enabled: Boolean) {
+        preferences.setHideFeedShorts(enabled)
+        invalidateMonitoringScope()
+    }
+
+    override fun setHardBlockVerticalVideos(enabled: Boolean) = preferences.setHardBlockVerticalVideos(enabled)
 
     override fun setYouTubeShortsEnabled(enabled: Boolean) {
         preferences.setYouTubeShortsEnabled(enabled)

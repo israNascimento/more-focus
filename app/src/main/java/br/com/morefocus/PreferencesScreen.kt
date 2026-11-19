@@ -136,6 +136,7 @@ internal fun PreferencesScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onShowUsageNotificationChange: (Boolean) -> Unit,
+    onHardBlockVerticalVideosChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onLimitSelected: (Int) -> Unit,
     onOpenApp: (FeaturedApp) -> Unit,
@@ -195,6 +196,13 @@ internal fun PreferencesScreen(
                 title = stringResource(R.string.preference_usage_notification_title),
                 checked = uiState.showUsageNotification,
                 onChange = onShowUsageNotificationChange
+            )
+            HorizontalDivider()
+            ToggleRow(
+                title = stringResource(R.string.preference_hard_block_vertical_videos_title),
+                checked = uiState.hardBlockVerticalVideos,
+                onChange = onHardBlockVerticalVideosChange,
+                description = stringResource(R.string.preference_hard_block_vertical_videos_description)
             )
             HorizontalDivider()
             ToggleRow(
@@ -291,17 +299,26 @@ internal fun AppPreferencesScreen(
 internal fun InstagramPreferences(
     uiState: MoreFocusUiState,
     onReels: (Boolean) -> Unit,
-    onHide: (Boolean) -> Unit,
-    onHardBlock: (Boolean) -> Unit
+    onHide: (Boolean) -> Unit
 ) {
     ToggleRow(stringResource(R.string.preference_instagram_reels_enabled_title), uiState.instagramReelsEnabled,
         onReels, stringResource(R.string.shared_limit_note))
     HorizontalDivider()
     ToggleRow(stringResource(R.string.preference_hide_feed_reels_title), uiState.hideFeedReels,
         onHide, stringResource(R.string.preference_hide_feed_reels_description))
+}
+
+@Composable
+internal fun YouTubePreferences(
+    uiState: MoreFocusUiState,
+    onShorts: (Boolean) -> Unit,
+    onHide: (Boolean) -> Unit
+) {
+    ToggleRow(stringResource(R.string.preference_youtube_shorts_enabled_title), uiState.youtubeShortsEnabled,
+        onShorts, stringResource(R.string.shared_limit_note))
     HorizontalDivider()
-    ToggleRow(stringResource(R.string.preference_hard_block_reels_title), uiState.hardBlockReels,
-        onHardBlock, stringResource(R.string.preference_hard_block_reels_description))
+    ToggleRow(stringResource(R.string.preference_hide_feed_shorts_title), uiState.hideFeedShorts,
+        onHide, stringResource(R.string.preference_hide_feed_shorts_description))
 }
 
 @Composable

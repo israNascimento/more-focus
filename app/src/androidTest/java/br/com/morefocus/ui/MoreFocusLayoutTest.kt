@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import br.com.morefocus.MoreFocusScreen
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
@@ -46,18 +47,22 @@ class MoreFocusLayoutTest {
     fun appDetailsRouteVideoTogglesAndWholeAppLimitsSeparately() {
         launch()
         tap("Preferências")
-        tap("Instagram")
+        val hardBlockTitle = "Bloqueio rígido de vídeos verticais"
+        compose.onNodeWithContentDescription(hardBlockTitle).performScrollTo().assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithText("Instagram").performScrollTo().performClick()
         compose.onNodeWithText("Limitar Shorts").assertDoesNotExist()
         compose.onNodeWithContentDescription("Limitar Reels").assertIsOn().performClick().assertIsOff()
         compose.onNodeWithText("Ocultar Reels no feed").assertExists()
-        compose.onNodeWithText("Bloqueio rígido de Reels").assertExists()
+        compose.onNodeWithContentDescription(hardBlockTitle).assertDoesNotExist()
         tap("Limite diário")
         tap("10 min")
         assertEquals(INSTAGRAM_PACKAGE_NAME to 600, editedLimit)
         backToPreferences()
         tap("YouTube")
+        compose.onNodeWithContentDescription(hardBlockTitle).assertDoesNotExist()
         compose.onNodeWithText("Limitar Reels").assertDoesNotExist()
         compose.onNodeWithContentDescription("Limitar Shorts").assertIsOn().performClick().assertIsOff()
+        compose.onNodeWithContentDescription("Ocultar Shorts no feed").assertIsOff().performClick().assertIsOn()
         tap("Definir")
         tap("5 min")
         assertEquals(YOUTUBE_PACKAGE_NAME to 300, addedLimit)
@@ -107,7 +112,8 @@ class MoreFocusLayoutTest {
                     onShowUsageNotificationChange = {},
                     onInstagramReelsEnabledChange = { state = state.copy(instagramReelsEnabled = it) },
                     onHideFeedReelsChange = {},
-                    onHardBlockReelsChange = {},
+                    onHideFeedShortsChange = { state = state.copy(hideFeedShorts = it) },
+                    onHardBlockVerticalVideosChange = { state = state.copy(hardBlockVerticalVideos = it) },
                     onYouTubeShortsEnabledChange = { state = state.copy(youtubeShortsEnabled = it) },
                     onExponentialPauseLockEnabledChange = {},
                     onDailyVerticalVideosLimitSecondsChange = { state = state.copy(dailyVerticalVideosLimitSeconds = it) },

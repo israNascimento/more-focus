@@ -44,7 +44,7 @@ class MoreFocusPreferences(context: Context) {
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
             appLimitRules = appLimitRules(nowMillis),
-            hardBlockReels = hardBlockReels()
+            hardBlockVerticalVideos = hardBlockVerticalVideos()
         )
     }
 
@@ -66,7 +66,7 @@ class MoreFocusPreferences(context: Context) {
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
             appLimitRules = listOfNotNull(activeRule),
-            hardBlockReels = hardBlockReels()
+            hardBlockVerticalVideos = hardBlockVerticalVideos()
         )
     }
 
@@ -76,6 +76,7 @@ class MoreFocusPreferences(context: Context) {
             instagramReelsEnabled = isInstagramReelsEnabled(),
             youtubeShortsEnabled = isYouTubeShortsEnabled(),
             hideFeedReels = hideFeedReels(),
+            hideFeedShorts = hideFeedShorts(),
             limitedPackages = appLimitPackages().filterTo(mutableSetOf()) { packageName ->
                 preferences.getBoolean(appEnabledKey(packageName), true)
             }
@@ -109,10 +110,16 @@ class MoreFocusPreferences(context: Context) {
         preferences.edit { putBoolean(KEY_HIDE_FEED_REELS, enabled) }
     }
 
-    fun hardBlockReels(): Boolean = preferences.getBoolean(KEY_HARD_BLOCK_REELS, false)
+    fun hideFeedShorts(): Boolean = preferences.getBoolean(KEY_HIDE_FEED_SHORTS, false)
 
-    fun setHardBlockReels(enabled: Boolean) {
-        preferences.edit { putBoolean(KEY_HARD_BLOCK_REELS, enabled) }
+    fun setHideFeedShorts(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_HIDE_FEED_SHORTS, enabled) }
+    }
+
+    fun hardBlockVerticalVideos(): Boolean = preferences.getBoolean(KEY_HARD_BLOCK_VERTICAL_VIDEOS, false)
+
+    fun setHardBlockVerticalVideos(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_HARD_BLOCK_VERTICAL_VIDEOS, enabled) }
     }
 
     fun isYouTubeShortsEnabled(): Boolean =
@@ -418,7 +425,9 @@ class MoreFocusPreferences(context: Context) {
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
         private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"
         private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"
-        private const val KEY_HARD_BLOCK_REELS = "hard_block_reels"
+        private const val KEY_HIDE_FEED_SHORTS = "hide_feed_shorts"
+        // Keep the original key so upgrades retain the user's choice.
+        private const val KEY_HARD_BLOCK_VERTICAL_VIDEOS = "hard_block_reels"
         private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =
             "vertical_videos_instagram_reels_enabled"
         private const val KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED =

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
+import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -96,21 +97,23 @@ class MoreFocusPreferencesTest {
     }
 
     @Test
-    fun hardBlockPersistsButTheExhaustedReelsBudgetResetsTheNextDay() {
+    fun existingHardBlockSettingAppliesToBothViewersUntilTheDailyBudgetResets() {
         val today = millis(year = 2026, month = 7, day = 8, hour = 10)
         val tomorrow = millis(year = 2026, month = 7, day = 9, hour = 10)
         preferences.setDailyVerticalVideosLimitSeconds(30)
         preferences.recordDailyVerticalVideosUsage(today - 30_000L, today)
-        assertFalse(preferences.getBlockSettings(today).hardBlocksInstagramReels)
+        assertFalse(preferences.getBlockSettings(today).hardVerticalVideoLimitReached)
 
-        preferences.setHardBlockReels(true)
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean("hard_block_reels", true).commit()
         val reloaded = MoreFocusPreferences(context)
         assertFalse(reloaded.hideFeedReels())
         val todaySettings = reloaded.getBlockSettingsForPackage(INSTAGRAM_PACKAGE_NAME, today)
-        val tomorrowSettings = reloaded.getBlockSettingsForPackage(INSTAGRAM_PACKAGE_NAME, tomorrow)
-        assertTrue(todaySettings.hardBlocksInstagramReels)
-        assertFalse(tomorrowSettings.hardBlocksInstagramReels)
-        assertTrue(reloaded.hardBlockReels())
+        assertTrue(todaySettings.hardVerticalVideoLimitReached)
+        assertTrue(reloaded.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, today).hardVerticalVideoLimitReached)
+        val tomorrowSettings = reloaded.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, tomorrow)
+        assertFalse(tomorrowSettings.hardVerticalVideoLimitReached)
+        assertTrue(reloaded.hardBlockVerticalVideos())
     }
 
     @Test
@@ -155,6 +158,16 @@ class MoreFocusPreferencesTest {
         repository.setInstagramReelsEnabled(false)
 
         assertFalse(repository.getMonitoringScope().instagramReelsEnabled)
+    }
+
+    @Test
+    fun hideFeedShortsPersistsAndUpdatesTheMonitoringScope() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        assertFalse(repository.getMonitoringScope().masksFeedVideos(YOUTUBE_PACKAGE_NAME))
+        repository.setHideFeedShorts(true)
+        assertTrue(repository.getMonitoringScope().masksFeedVideos(YOUTUBE_PACKAGE_NAME))
+        assertTrue(MoreFocusPreferences(context).hideFeedShorts())
+        assertFalse(preferences.hideFeedReels())
     }
 
     @Test

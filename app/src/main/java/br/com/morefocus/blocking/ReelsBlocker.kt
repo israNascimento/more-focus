@@ -13,7 +13,7 @@ data class BlockSettings(
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
     val dailyVerticalVideosUsageMillis: Long = 0L,
     val appLimitRules: List<AppLimitRule> = emptyList(),
-    val hardBlockReels: Boolean = false
+    val hardBlockVerticalVideos: Boolean = false
 ) {
     val dailyVerticalVideosLimitMillis: Long
         get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
@@ -22,8 +22,8 @@ data class BlockSettings(
         get() = (dailyVerticalVideosLimitMillis - dailyVerticalVideosUsageMillis)
             .coerceAtLeast(0L)
 
-    val hardBlocksInstagramReels: Boolean
-        get() = hardBlockReels && focusEnabled && instagramReelsEnabled &&
+    val hardVerticalVideoLimitReached: Boolean
+        get() = hardBlockVerticalVideos && focusEnabled &&
             remainingDailyVerticalVideosLimitMillis == 0L
 
     fun appLimitRuleFor(packageName: String?): AppLimitRule? =
@@ -47,13 +47,18 @@ data class MonitoringScope(
     val instagramReelsEnabled: Boolean,
     val youtubeShortsEnabled: Boolean,
     val limitedPackages: Set<String>,
-    val hideFeedReels: Boolean = false
+    val hideFeedReels: Boolean = false,
+    val hideFeedShorts: Boolean = false
 ) {
     fun monitors(packageName: String?): Boolean =
         monitorsAppLimit(packageName) || monitorsVerticalVideos(packageName)
 
-    fun masksFeedReels(packageName: String?): Boolean =
-        focusEnabled && hideFeedReels && packageName == INSTAGRAM_PACKAGE_NAME
+    fun masksFeedVideos(packageName: String?): Boolean =
+        focusEnabled && when (packageName) {
+            INSTAGRAM_PACKAGE_NAME -> hideFeedReels
+            YOUTUBE_PACKAGE_NAME -> hideFeedShorts
+            else -> false
+        }
 
     fun monitorsAppLimit(packageName: String?): Boolean =
         focusEnabled && packageName != null && packageName in limitedPackages
@@ -65,12 +70,7 @@ data class MonitoringScope(
         )
 }
 
-internal fun BlockSettings.isEnabledVerticalVideo(
-    isInstagramReels: Boolean,
-    isYouTubeShorts: Boolean
-): Boolean =
-    (instagramReelsEnabled && isInstagramReels) ||
-        (youtubeShortsEnabled && isYouTubeShorts)
+enum class VerticalVideoAction { NONE, SHOW_WARNING, GO_BACK }
 
 class BlockDecisionEngine(
     private val reelsDetector: ReelsDetector,
@@ -79,31 +79,27 @@ class BlockDecisionEngine(
     fun shouldBlock(settings: BlockSettings, screen: ScreenSnapshot, nowMillis: Long): Boolean {
         if (blockedAppLimitRule(settings, screen.packageName, nowMillis) != null) return true
 
-        return shouldBlock(
-            settings = settings,
-            isInstagramReels = settings.instagramReelsEnabled &&
-                screen.packageName == INSTAGRAM_PACKAGE_NAME &&
-                reelsDetector.isInstagramReels(screen),
-            isYouTubeShorts = settings.youtubeShortsEnabled &&
-                screen.packageName == YOUTUBE_PACKAGE_NAME &&
-                shortsBlocker.isYouTubeShorts(screen),
-            nowMillis = nowMillis
-        )
+        return verticalVideoAction(settings, isEnabledVerticalVideo(settings, screen), nowMillis) !=
+            VerticalVideoAction.NONE
     }
 
-    fun shouldBlock(
+    fun isEnabledVerticalVideo(
         settings: BlockSettings,
-        isInstagramReels: Boolean,
-        isYouTubeShorts: Boolean,
-        nowMillis: Long
-    ): Boolean {
-        if (isInstagramReels && settings.hardBlocksInstagramReels) return true
-        if (!settings.focusEnabled) return false
-        if (settings.pauseUntilMillis > nowMillis) return false
-        if (!settings.isEnabledVerticalVideo(isInstagramReels, isYouTubeShorts)) return false
+        screen: ScreenSnapshot
+    ): Boolean =
+        (settings.instagramReelsEnabled && reelsDetector.isInstagramReels(screen)) ||
+            (settings.youtubeShortsEnabled && shortsBlocker.isYouTubeShorts(screen))
 
-        return settings.dailyVerticalVideosUsageMillis >=
-            settings.dailyVerticalVideosLimitMillis
+    fun verticalVideoAction(
+        settings: BlockSettings,
+        isEnabledVerticalVideo: Boolean,
+        nowMillis: Long
+    ): VerticalVideoAction = when {
+        !isEnabledVerticalVideo || !settings.focusEnabled -> VerticalVideoAction.NONE
+        settings.hardVerticalVideoLimitReached -> VerticalVideoAction.GO_BACK
+        settings.pauseUntilMillis > nowMillis -> VerticalVideoAction.NONE
+        settings.remainingDailyVerticalVideosLimitMillis == 0L -> VerticalVideoAction.SHOW_WARNING
+        else -> VerticalVideoAction.NONE
     }
 
     fun blockedAppLimitRule(

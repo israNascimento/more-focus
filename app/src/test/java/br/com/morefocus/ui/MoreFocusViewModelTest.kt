@@ -76,9 +76,12 @@ class MoreFocusViewModelTest {
         viewModel.setInstagramReelsEnabled(false)
         viewModel.setHideFeedReels(true)
         assertTrue(viewModel.uiState.value.hideFeedReels)
-        assertFalse(viewModel.uiState.value.hardBlockReels)
-        viewModel.setHardBlockReels(true)
-        assertTrue(viewModel.uiState.value.hardBlockReels)
+        assertFalse(viewModel.uiState.value.hideFeedShorts)
+        viewModel.setHideFeedShorts(true)
+        assertTrue(viewModel.uiState.value.hideFeedShorts)
+        assertFalse(viewModel.uiState.value.hardBlockVerticalVideos)
+        viewModel.setHardBlockVerticalVideos(true)
+        assertTrue(viewModel.uiState.value.hardBlockVerticalVideos)
         viewModel.setShowUsageNotification(false)
         assertFalse(viewModel.uiState.value.showUsageNotification)
         viewModel.setYouTubeShortsEnabled(false)
@@ -209,7 +212,7 @@ class MoreFocusViewModelTest {
             BlockSettings(
                 focusEnabled = settings.focusEnabled,
                 instagramReelsEnabled = settings.instagramReelsEnabled,
-                hardBlockReels = settings.hardBlockReels,
+                hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
                 dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
                 dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
@@ -228,8 +231,12 @@ class MoreFocusViewModelTest {
             settings = settings.copy(hideFeedReels = enabled)
         }
 
-        override fun setHardBlockReels(enabled: Boolean) {
-            settings = settings.copy(hardBlockReels = enabled)
+        override fun setHideFeedShorts(enabled: Boolean) {
+            settings = settings.copy(hideFeedShorts = enabled)
+        }
+
+        override fun setHardBlockVerticalVideos(enabled: Boolean) {
+            settings = settings.copy(hardBlockVerticalVideos = enabled)
         }
 
         override fun setShowUsageNotification(show: Boolean) {

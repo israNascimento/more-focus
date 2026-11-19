@@ -8,6 +8,16 @@ class ShortsBlockerTest {
     private val blocker = ShortsBlocker()
 
     @Test
+    fun feedCardsRequireTheShortPlaybackAction() {
+        assertTrue(isYouTubeFeedShort("Título do vídeo - ver o Shorts"))
+        assertTrue(isYouTubeFeedShort("A title - with a dash - Play Short"))
+        assertFalse(isYouTubeFeedShort("Shorts"))
+        assertFalse(isYouTubeFeedShort("Como criar Shorts - ver o vídeo"))
+        assertFalse(isYouTubeFeedShort("Título - ver o Shorts - Mais opções"))
+        assertFalse(isYouTubeFeedShort(null))
+    }
+
+    @Test
     fun detectsYouTubeShortsFromAccessibleProgressBarId() {
         val screen = youtubeScreen(resourceIds = setOf("reel_progress_bar"))
 

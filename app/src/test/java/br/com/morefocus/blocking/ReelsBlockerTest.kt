@@ -1,6 +1,7 @@
 package br.com.morefocus.blocking
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -8,25 +9,43 @@ class ReelsBlockerTest {
     private val engine = BlockDecisionEngine(ReelsDetector(), ShortsBlocker())
 
     @Test
-    fun hardBlockRequiresAnEnabledInstagramRuleAndAnExhaustedDailyBudget() {
-        val settings = settingsAtLimit().copy(hardBlockReels = true)
-        assertTrue(settings.hardBlocksInstagramReels)
+    fun hardBlockRequiresFocusAndAnExhaustedSharedBudget() {
+        val settings = settingsAtLimit().copy(hardBlockVerticalVideos = true)
+        assertTrue(settings.hardVerticalVideoLimitReached)
         val justBeforeLimit = settings.copy(
             dailyVerticalVideosUsageMillis = settings.dailyVerticalVideosLimitMillis - 1
         )
-        assertFalse(justBeforeLimit.hardBlocksInstagramReels)
-        assertFalse(settings.copy(dailyVerticalVideosUsageMillis = 0L).hardBlocksInstagramReels)
-        assertFalse(settings.copy(instagramReelsEnabled = false).hardBlocksInstagramReels)
-        assertFalse(settings.copy(focusEnabled = false).hardBlocksInstagramReels)
-        assertFalse(settingsAtLimit().hardBlocksInstagramReels)
+        assertFalse(justBeforeLimit.hardVerticalVideoLimitReached)
+        assertFalse(settings.copy(dailyVerticalVideosUsageMillis = 0L).hardVerticalVideoLimitReached)
+        assertFalse(settings.copy(focusEnabled = false).hardVerticalVideoLimitReached)
+        assertFalse(settingsAtLimit().hardVerticalVideoLimitReached)
     }
 
     @Test
-    fun aPauseCannotReopenAnExhaustedReelButStillAppliesToShorts() {
-        val settings = settingsAtLimit().copy(hardBlockReels = true, pauseUntilMillis = 2_000L)
-        assertTrue(engine.shouldBlock(settings, explicitReelsScreen(), nowMillis = 1_000L))
-        assertFalse(engine.shouldBlock(settings, youtubeShortsScreen(), nowMillis = 1_000L))
-        assertFalse(engine.shouldBlock(settings, instagramScreen("Feed"), nowMillis = 1_000L))
+    fun exhaustedEnabledViewersGoBackInHardModeAndShowTheWarningInNormalMode() {
+        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen())) {
+            fun action(settings: BlockSettings) = engine.verticalVideoAction(
+                settings, engine.isEnabledVerticalVideo(settings, screen), nowMillis = 1_000L
+            )
+            val hard = settingsAtLimit().copy(hardBlockVerticalVideos = true)
+            assertEquals(VerticalVideoAction.GO_BACK, action(hard))
+            assertEquals(VerticalVideoAction.GO_BACK, action(hard.copy(pauseUntilMillis = 2_000L)))
+            assertEquals(VerticalVideoAction.NONE, action(hard.copy(dailyVerticalVideosUsageMillis = 0L)))
+            assertEquals(VerticalVideoAction.NONE, action(hard.copy(focusEnabled = false)))
+            assertEquals(VerticalVideoAction.SHOW_WARNING, action(settingsAtLimit()))
+            assertEquals(VerticalVideoAction.NONE, action(settingsAtLimit().copy(pauseUntilMillis = 2_000L)))
+        }
+    }
+
+    @Test
+    fun hardModeRespectsIndividualRulesAndLeavesOtherScreensAlone() {
+        val settings = settingsAtLimit().copy(hardBlockVerticalVideos = true, instagramReelsEnabled = false)
+        assertFalse(engine.shouldBlock(settings, explicitReelsScreen(), nowMillis = 1_000L))
+        assertTrue(engine.shouldBlock(settings, youtubeShortsScreen(), nowMillis = 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(youtubeShortsEnabled = false), youtubeShortsScreen(), 1_000L))
+        for (screen in listOf(instagramScreen("Feed"), appScreen(YOUTUBE_PACKAGE_NAME), appScreen("com.other"))) {
+            assertFalse(engine.shouldBlock(settings.copy(instagramReelsEnabled = true), screen, 1_000L))
+        }
     }
 
     @Test
@@ -230,10 +249,10 @@ class ReelsBlockerTest {
             youtubeShortsEnabled = true
         )
 
-        assertTrue(reelsOnly.isEnabledVerticalVideo(true, false))
-        assertFalse(reelsOnly.isEnabledVerticalVideo(false, true))
-        assertTrue(shortsOnly.isEnabledVerticalVideo(false, true))
-        assertFalse(shortsOnly.isEnabledVerticalVideo(true, false))
+        assertTrue(engine.isEnabledVerticalVideo(reelsOnly, explicitReelsScreen()))
+        assertFalse(engine.isEnabledVerticalVideo(reelsOnly, youtubeShortsScreen()))
+        assertTrue(engine.isEnabledVerticalVideo(shortsOnly, youtubeShortsScreen()))
+        assertFalse(engine.isEnabledVerticalVideo(shortsOnly, explicitReelsScreen()))
     }
 
     @Test
