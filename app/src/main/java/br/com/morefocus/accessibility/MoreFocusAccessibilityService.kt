@@ -46,6 +46,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private lateinit var settingsRepository: MoreFocusSettingsRepository
     private lateinit var windowManager: WindowManager
+    private var watchingFeedReels = false
+    private var feedReelMask: FeedReelMask? = null
     private var overlayView: View? = null
     private var overlayMessage: OverlayMessage? = null
     private var overlayMutationInProgress = false
@@ -86,17 +88,40 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             .appContainer
             .settingsRepository
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        feedReelMask = FeedReelMask(this, windowManager)
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
+        updateFeedReelMask(null)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (overlayView != null || overlayMutationInProgress) return
+        if (!::settingsRepository.isInitialized) return
+        val eventPackage = event?.packageName?.toString()
+        if (updateFeedReelMask(eventPackage) && eventPackage == packageName) return
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
         eventEvaluationThrottle.submit(
             AccessibilityEventContext(
                 packageName = event?.packageName?.toString(),
                 className = event?.className?.toString()
             )
         )
+    }
+
+    private fun updateFeedReelMask(eventPackage: String?): Boolean {
+        val scope = settingsRepository.getMonitoringScope()
+        val checkWindow = eventPackage == INSTAGRAM_PACKAGE_NAME || eventPackage == null || watchingFeedReels
+        val root = if (scope.hideFeedReels && scope.focusEnabled && checkWindow) rootInActiveWindow else null
+        val watch = scope.masksFeedReels(root?.packageName?.toString())
+        if (watch != watchingFeedReels) {
+            watchingFeedReels = watch
+            val info = serviceInfo
+            val scroll = AccessibilityEvent.TYPE_VIEW_SCROLLED
+            info.eventTypes = if (watch) info.eventTypes or scroll else info.eventTypes and scroll.inv()
+            info.notificationTimeout = if (watch) 32L else EVENT_EVALUATION_INTERVAL_MILLIS
+            serviceInfo = info
+        }
+        if (watch) feedReelMask?.update(root) else feedReelMask?.clear()
+        return watch
     }
 
     private fun evaluateCurrentScreen(eventContext: AccessibilityEventContext? = null) {
@@ -233,11 +258,13 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     override fun onInterrupt() {
+        feedReelMask?.clear()
         stopTracking(System.currentTimeMillis())
         hideOverlay()
     }
 
     override fun onDestroy() {
+        feedReelMask?.clear()
         stopTracking(System.currentTimeMillis())
         hideOverlay()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
@@ -245,6 +272,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun showOverlay(message: OverlayMessage) {
+        feedReelMask?.clear()
         val messageWithPauseLock = message.copy(
             pauseLockSeconds = settingsRepository.pauseExtensionLockSeconds(
                 message.pauseExtensionTarget

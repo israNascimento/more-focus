@@ -34,6 +34,17 @@ class MonitoringScopeTest {
     }
 
     @Test
+    fun canMaskOnlyInstagramFeedWithoutCountingVerticalVideoTime() {
+        val scope = MonitoringScope(true, false, false, emptySet(), hideFeedReels = true)
+
+        assertTrue(scope.masksFeedReels(INSTAGRAM_PACKAGE_NAME))
+        assertFalse(scope.monitorsVerticalVideos(INSTAGRAM_PACKAGE_NAME))
+        assertFalse(scope.masksFeedReels(YOUTUBE_PACKAGE_NAME))
+        assertFalse(scope.copy(focusEnabled = false).masksFeedReels(INSTAGRAM_PACKAGE_NAME))
+        assertFalse(scope.copy(hideFeedReels = false).masksFeedReels(INSTAGRAM_PACKAGE_NAME))
+    }
+
+    @Test
     fun monitorsNothingWhenFocusIsDisabled() {
         val scope = MonitoringScope(
             focusEnabled = false,

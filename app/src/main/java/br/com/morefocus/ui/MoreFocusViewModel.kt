@@ -14,6 +14,7 @@ data class MoreFocusUiState(
     val serviceEnabled: Boolean = false,
     val focusEnabled: Boolean = true,
     val instagramReelsEnabled: Boolean = true,
+    val hideFeedReels: Boolean = false,
     val youtubeShortsEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
@@ -43,6 +44,11 @@ class MoreFocusViewModel(
 
     fun setInstagramReelsEnabled(enabled: Boolean) {
         settingsRepository.setInstagramReelsEnabled(enabled)
+        refresh()
+    }
+
+    fun setHideFeedReels(enabled: Boolean) {
+        settingsRepository.setHideFeedReels(enabled)
         refresh()
     }
 
@@ -94,6 +100,7 @@ class MoreFocusViewModel(
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
             instagramReelsEnabled = settings.instagramReelsEnabled,
+            hideFeedReels = settings.hideFeedReels,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,

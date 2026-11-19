@@ -101,6 +101,7 @@ private fun MoreFocusApp(
         uiState = uiState,
         onFocusEnabledChange = viewModel::setFocusEnabled,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
+        onHideFeedReelsChange = viewModel::setHideFeedReels,
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
         onDailyVerticalVideosLimitSecondsChange =
@@ -126,6 +127,7 @@ private fun MoreFocusScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
@@ -194,6 +196,7 @@ private fun MoreFocusScreen(
                             uiState = uiState,
                             onFocusEnabledChange = onFocusEnabledChange,
                             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
+                            onHideFeedReelsChange = onHideFeedReelsChange,
                             onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
                             onExponentialPauseLockEnabledChange =
                                 onExponentialPauseLockEnabledChange,
@@ -217,6 +220,7 @@ private fun PreferencesScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
@@ -244,6 +248,7 @@ private fun PreferencesScreen(
         PreferenceCard(
             focusEnabled = uiState.focusEnabled,
             instagramReelsEnabled = uiState.instagramReelsEnabled,
+            hideFeedReels = uiState.hideFeedReels,
             youtubeShortsEnabled = uiState.youtubeShortsEnabled,
             exponentialPauseLockEnabled = uiState.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = uiState.dailyVerticalVideosLimitSeconds,
@@ -251,6 +256,7 @@ private fun PreferencesScreen(
                 uiState.dailyVerticalVideosLimitSecondOptions,
             onFocusEnabledChange = onFocusEnabledChange,
             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
+            onHideFeedReelsChange = onHideFeedReelsChange,
             onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
             onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
             onDailyVerticalVideosLimitSecondsChange =
@@ -490,12 +496,14 @@ private fun DisclosureCard() {
 private fun PreferenceCard(
     focusEnabled: Boolean,
     instagramReelsEnabled: Boolean,
+    hideFeedReels: Boolean,
     youtubeShortsEnabled: Boolean,
     exponentialPauseLockEnabled: Boolean,
     dailyVerticalVideosLimitSeconds: Int,
     dailyVerticalVideosLimitSecondOptions: List<Int>,
     onFocusEnabledChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
+    onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
@@ -534,6 +542,12 @@ private fun PreferenceCard(
                 description = stringResource(R.string.preference_instagram_reels_enabled_description),
                 checked = instagramReelsEnabled,
                 onCheckedChange = onInstagramReelsEnabledChange
+            )
+            ToggleRow(
+                title = stringResource(R.string.preference_hide_feed_reels_title),
+                description = stringResource(R.string.preference_hide_feed_reels_description),
+                checked = hideFeedReels,
+                onCheckedChange = onHideFeedReelsChange
             )
             ToggleRow(
                 title = stringResource(R.string.preference_youtube_shorts_enabled_title),
@@ -970,6 +984,7 @@ private fun MoreFocusScreenPreview() {
             ),
             onFocusEnabledChange = {},
             onInstagramReelsEnabledChange = {},
+            onHideFeedReelsChange = {},
             onYouTubeShortsEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
             onDailyVerticalVideosLimitSecondsChange = {},

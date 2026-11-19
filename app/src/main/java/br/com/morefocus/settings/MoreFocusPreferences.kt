@@ -56,6 +56,7 @@ class MoreFocusPreferences(context: Context) {
             focusEnabled = preferences.getBoolean(KEY_FOCUS_ENABLED, true),
             instagramReelsEnabled = isInstagramReelsEnabled(),
             youtubeShortsEnabled = isYouTubeShortsEnabled(),
+            hideFeedReels = hideFeedReels(),
             limitedPackages = appLimitPackages().filterTo(mutableSetOf()) { packageName ->
                 preferences.getBoolean(appEnabledKey(packageName), true)
             }
@@ -75,6 +76,12 @@ class MoreFocusPreferences(context: Context) {
         preferences.edit {
             putBoolean(KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED, enabled)
         }
+    }
+
+    fun hideFeedReels(): Boolean = preferences.getBoolean(KEY_HIDE_FEED_REELS, false)
+
+    fun setHideFeedReels(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_HIDE_FEED_REELS, enabled) }
     }
 
     fun isYouTubeShortsEnabled(): Boolean =
@@ -378,6 +385,7 @@ class MoreFocusPreferences(context: Context) {
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
+        private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"
         private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =
             "vertical_videos_instagram_reels_enabled"
         private const val KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED =

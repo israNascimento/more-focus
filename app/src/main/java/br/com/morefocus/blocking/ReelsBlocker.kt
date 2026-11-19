@@ -41,10 +41,14 @@ data class MonitoringScope(
     val focusEnabled: Boolean,
     val instagramReelsEnabled: Boolean,
     val youtubeShortsEnabled: Boolean,
-    val limitedPackages: Set<String>
+    val limitedPackages: Set<String>,
+    val hideFeedReels: Boolean = false
 ) {
     fun monitors(packageName: String?): Boolean =
         monitorsAppLimit(packageName) || monitorsVerticalVideos(packageName)
+
+    fun masksFeedReels(packageName: String?): Boolean =
+        focusEnabled && hideFeedReels && packageName == INSTAGRAM_PACKAGE_NAME
 
     fun monitorsAppLimit(packageName: String?): Boolean =
         focusEnabled && packageName != null && packageName in limitedPackages

@@ -13,7 +13,8 @@ data class MoreFocusSettings(
     val youtubeShortsEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int,
-    val appLimitRules: List<AppLimitRule> = emptyList()
+    val appLimitRules: List<AppLimitRule> = emptyList(),
+    val hideFeedReels: Boolean = false
 )
 
 interface MoreFocusSettingsRepository {
@@ -38,11 +39,12 @@ interface MoreFocusSettingsRepository {
     }
 
     fun getMonitoringScope(): MonitoringScope {
-        val settings = getBlockSettings()
+        val settings = getSettings()
         return MonitoringScope(
             focusEnabled = settings.focusEnabled,
             instagramReelsEnabled = settings.instagramReelsEnabled,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
+            hideFeedReels = settings.hideFeedReels,
             limitedPackages = settings.appLimitRules
                 .filter { it.enabled }
                 .mapTo(mutableSetOf()) { it.packageName }
@@ -52,6 +54,8 @@ interface MoreFocusSettingsRepository {
     fun setFocusEnabled(enabled: Boolean)
 
     fun setInstagramReelsEnabled(enabled: Boolean)
+
+    fun setHideFeedReels(enabled: Boolean)
 
     fun setYouTubeShortsEnabled(enabled: Boolean)
 
@@ -109,7 +113,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
             youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
-            appLimitRules = preferences.appLimitRules()
+            appLimitRules = preferences.appLimitRules(),
+            hideFeedReels = preferences.hideFeedReels()
         )
 
     override fun getBlockSettings(nowMillis: Long): BlockSettings =
@@ -132,6 +137,11 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun setInstagramReelsEnabled(enabled: Boolean) {
         preferences.setInstagramReelsEnabled(enabled)
+        invalidateMonitoringScope()
+    }
+
+    override fun setHideFeedReels(enabled: Boolean) {
+        preferences.setHideFeedReels(enabled)
         invalidateMonitoringScope()
     }
 
