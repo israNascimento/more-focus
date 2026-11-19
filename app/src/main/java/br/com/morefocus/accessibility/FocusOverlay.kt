@@ -12,9 +12,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -31,6 +34,7 @@ import br.com.morefocus.R
 import br.com.morefocus.ui.theme.MoreFocusTheme
 import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusOverlay(
     title: String,
@@ -85,23 +89,26 @@ fun FocusOverlay(
                         alignment = Alignment.End
                     )
                 ) {
-                    Button(
-                        onClick = onPauseClick,
-                        enabled = remainingPauseLockSeconds == 0
-                    ) {
-                        Text(
-                            text = if (remainingPauseLockSeconds > 0) {
-                                stringResource(
-                                    R.string.focus_overlay_add_minute_locked,
-                                    remainingPauseLockSeconds
-                                )
-                            } else {
-                                stringResource(R.string.focus_overlay_add_minute)
-                            }
-                        )
-                    }
-                    Button(onClick = onExitClick) {
-                        Text(text = stringResource(R.string.focus_overlay_exit))
+                    // Both actions remove the overlay window while the native ripple is still drawing.
+                    CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                        Button(
+                            onClick = onPauseClick,
+                            enabled = remainingPauseLockSeconds == 0
+                        ) {
+                            Text(
+                                text = if (remainingPauseLockSeconds > 0) {
+                                    stringResource(
+                                        R.string.focus_overlay_add_minute_locked,
+                                        remainingPauseLockSeconds
+                                    )
+                                } else {
+                                    stringResource(R.string.focus_overlay_add_minute)
+                                }
+                            )
+                        }
+                        Button(onClick = onExitClick) {
+                            Text(text = stringResource(R.string.focus_overlay_exit))
+                        }
                     }
                 }
             }

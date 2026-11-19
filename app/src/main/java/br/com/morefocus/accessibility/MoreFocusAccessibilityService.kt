@@ -34,6 +34,8 @@ import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
 import br.com.morefocus.blocking.ShortsBlocker
 import br.com.morefocus.blocking.VerticalVideoAction
+import br.com.morefocus.blocking.X_PACKAGE_NAME
+import br.com.morefocus.blocking.X_VIDEO_VIEWER_ID
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.ui.theme.MoreFocusTheme
@@ -102,17 +104,21 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         if (overlayMutationInProgress || !::settingsRepository.isInitialized) return
         if (overlayView != null) {
             val message = overlayMessage ?: return
-            if (message.pauseExtensionTarget != PauseExtensionTarget.VerticalVideos ||
-                message.verticalVideosPackageNameToTrackOnPause != INSTAGRAM_PACKAGE_NAME
-            ) return
+            if (message.pauseExtensionTarget != PauseExtensionTarget.VerticalVideos) return
+            val viewerPackage = message.verticalVideosPackageNameToTrackOnPause
+            if (viewerPackage != INSTAGRAM_PACKAGE_NAME && viewerPackage != X_PACKAGE_NAME) return
 
             // The touchable dialog can be the active accessibility window. Inspect the app below it.
             val appRoot = windows.firstOrNull {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
             }?.root ?: return
-            if (appRoot.packageName == INSTAGRAM_PACKAGE_NAME &&
-                visibleResourceId(appRoot, reelsDetector.homeFeedResourceIds) == null
-            ) return
+            if (appRoot.packageName == viewerPackage) {
+                val stillWatching = when (viewerPackage) {
+                    X_PACKAGE_NAME -> xVideoScreenIds(appRoot).isNotEmpty()
+                    else -> visibleResourceId(appRoot, reelsDetector.homeFeedResourceIds) == null
+                }
+                if (stillWatching) return
+            }
             hideOverlay()
             updateFeedVideoMask(appRoot.packageName?.toString())
             evaluateCurrentScreen(AccessibilityEventContext(appRoot.packageName?.toString(), null))
@@ -212,7 +218,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         )
         val settings = storedSettings.withActiveUsage(packageName, nowMillis)
         val blockFeedFor = packageName?.takeIf {
-            settings.hardVerticalVideoLimitReached && monitoringScope.monitorsVerticalVideos(it)
+            (it == INSTAGRAM_PACKAGE_NAME || it == YOUTUBE_PACKAGE_NAME) &&
+                settings.hardVerticalVideoLimitReached && monitoringScope.monitorsVerticalVideos(it)
         }
         if (blockFeedFor != blockedFeedPackage) {
             blockedFeedPackage = blockFeedFor
@@ -310,9 +317,18 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                 }
             }
             YOUTUBE_PACKAGE_NAME -> setOfNotNull(visibleResourceId(root, shortsBlocker.resourceIdsOfInterest))
+            X_PACKAGE_NAME -> xVideoScreenIds(root)
             else -> emptySet()
         }
         return ScreenSnapshot(packageName, className, ids)
+    }
+
+    private fun xVideoScreenIds(root: AccessibilityNodeInfo): Set<String> {
+        // Compose exposes VideoTab as a bare tag, below the native content container.
+        val content = root.findAccessibilityNodeInfosByViewId("android:id/content").firstOrNull() ?: root
+        return AccessibilityNodeScanner.resourceEntryNames(
+            content, setOf(X_VIDEO_VIEWER_ID), visibleOnly = true, hasConclusiveMatch = { it.isNotEmpty() }
+        )
     }
 
     override fun onInterrupt() {

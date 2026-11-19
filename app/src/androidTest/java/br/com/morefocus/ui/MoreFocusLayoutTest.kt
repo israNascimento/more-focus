@@ -67,6 +67,12 @@ class MoreFocusLayoutTest {
         tap("5 min")
         assertEquals(YOUTUBE_PACKAGE_NAME to 300, addedLimit)
         backToPreferences()
+        tap("Uso")
+        compose.onNodeWithText("restantes hoje").assertIsDisplayed()
+        tap("Preferências")
+        compose.onNodeWithText("X").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Limitar vídeos em tela cheia").assertIsOn().performClick().assertIsOff()
+        backToPreferences()
         tap("Limite compartilhado")
         tap("10 min")
         tap("Uso")
@@ -115,6 +121,7 @@ class MoreFocusLayoutTest {
                     onHideFeedShortsChange = { state = state.copy(hideFeedShorts = it) },
                     onHardBlockVerticalVideosChange = { state = state.copy(hardBlockVerticalVideos = it) },
                     onYouTubeShortsEnabledChange = { state = state.copy(youtubeShortsEnabled = it) },
+                    onXVideosEnabledChange = { state = state.copy(xVideosEnabled = it) },
                     onExponentialPauseLockEnabledChange = {},
                     onDailyVerticalVideosLimitSecondsChange = { state = state.copy(dailyVerticalVideosLimitSeconds = it) },
                     onAddAppLimit = { pkg, seconds -> addedLimit = pkg to seconds },

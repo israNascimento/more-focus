@@ -142,6 +142,7 @@ private fun MoreFocusApp(
         onHideFeedShortsChange = viewModel::setHideFeedShorts,
         onHardBlockVerticalVideosChange = viewModel::setHardBlockVerticalVideos,
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
+        onXVideosEnabledChange = viewModel::setXVideosEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
         onDailyVerticalVideosLimitSecondsChange =
             viewModel::setDailyVerticalVideosLimitSeconds,
@@ -172,6 +173,7 @@ internal fun MoreFocusScreen(
     onHideFeedShortsChange: (Boolean) -> Unit,
     onHardBlockVerticalVideosChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
+    onXVideosEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
@@ -249,6 +251,10 @@ internal fun MoreFocusScreen(
                             )
                             FeaturedApp.YouTube -> YouTubePreferences(
                                 uiState, onYouTubeShortsEnabledChange, onHideFeedShortsChange
+                            )
+                            FeaturedApp.X -> ToggleRow(
+                                stringResource(R.string.preference_x_videos_enabled_title), uiState.xVideosEnabled,
+                                onXVideosEnabledChange, stringResource(R.string.preference_x_videos_description)
                             )
                         }
                     }
@@ -605,6 +611,7 @@ private fun MoreFocusScreenPreview() {
             onHideFeedShortsChange = {},
             onHardBlockVerticalVideosChange = {},
             onYouTubeShortsEnabledChange = {},
+            onXVideosEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
             onDailyVerticalVideosLimitSecondsChange = {},
             onAddAppLimit = { _, _ -> },

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
+import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
 import org.junit.After
@@ -97,7 +98,7 @@ class MoreFocusPreferencesTest {
     }
 
     @Test
-    fun existingHardBlockSettingAppliesToBothViewersUntilTheDailyBudgetResets() {
+    fun existingHardBlockSettingAppliesToAllViewersUntilTheDailyBudgetResets() {
         val today = millis(year = 2026, month = 7, day = 8, hour = 10)
         val tomorrow = millis(year = 2026, month = 7, day = 9, hour = 10)
         preferences.setDailyVerticalVideosLimitSeconds(30)
@@ -111,6 +112,7 @@ class MoreFocusPreferencesTest {
         val todaySettings = reloaded.getBlockSettingsForPackage(INSTAGRAM_PACKAGE_NAME, today)
         assertTrue(todaySettings.hardVerticalVideoLimitReached)
         assertTrue(reloaded.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, today).hardVerticalVideoLimitReached)
+        assertTrue(reloaded.getBlockSettingsForPackage(X_PACKAGE_NAME, today).hardVerticalVideoLimitReached)
         val tomorrowSettings = reloaded.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, tomorrow)
         assertFalse(tomorrowSettings.hardVerticalVideoLimitReached)
         assertTrue(reloaded.hardBlockVerticalVideos())
@@ -158,6 +160,19 @@ class MoreFocusPreferencesTest {
         repository.setInstagramReelsEnabled(false)
 
         assertFalse(repository.getMonitoringScope().instagramReelsEnabled)
+    }
+
+    @Test
+    fun xRulePersistsAndOnlyTargetsTheViewer() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(X_PACKAGE_NAME))
+        assertFalse(repository.getMonitoringScope().masksFeedVideos(X_PACKAGE_NAME))
+        repository.setXVideosEnabled(false)
+        assertFalse(repository.getMonitoringScope().monitors(X_PACKAGE_NAME))
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(YOUTUBE_PACKAGE_NAME))
+        val reloaded = MoreFocusPreferences(context)
+        assertFalse(reloaded.getBlockSettings().xVideosEnabled)
+        assertFalse(reloaded.getBlockSettingsForPackage(X_PACKAGE_NAME).xVideosEnabled)
     }
 
     @Test

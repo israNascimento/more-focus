@@ -85,6 +85,7 @@ class MoreFocusViewModelTest {
         viewModel.setShowUsageNotification(false)
         assertFalse(viewModel.uiState.value.showUsageNotification)
         viewModel.setYouTubeShortsEnabled(false)
+        viewModel.setXVideosEnabled(false)
         viewModel.setExponentialPauseLockEnabled(false)
 
         assertFalse(settingsRepository.getSettings().focusEnabled)
@@ -94,6 +95,7 @@ class MoreFocusViewModelTest {
         assertFalse(viewModel.uiState.value.focusEnabled)
         assertFalse(viewModel.uiState.value.instagramReelsEnabled)
         assertFalse(viewModel.uiState.value.youtubeShortsEnabled)
+        assertFalse(viewModel.uiState.value.xVideosEnabled)
         assertFalse(viewModel.uiState.value.exponentialPauseLockEnabled)
     }
 
@@ -214,6 +216,7 @@ class MoreFocusViewModelTest {
                 instagramReelsEnabled = settings.instagramReelsEnabled,
                 hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
+                xVideosEnabled = settings.xVideosEnabled,
                 dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
                 dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
                 appLimitRules = settings.appLimitRules
@@ -245,6 +248,10 @@ class MoreFocusViewModelTest {
 
         override fun setYouTubeShortsEnabled(enabled: Boolean) {
             settings = settings.copy(youtubeShortsEnabled = enabled)
+        }
+
+        override fun setXVideosEnabled(enabled: Boolean) {
+            settings = settings.copy(xVideosEnabled = enabled)
         }
 
         override fun setExponentialPauseLockEnabled(enabled: Boolean) {

@@ -79,7 +79,7 @@ class DailyUsageNotification(
 
         val settings = preferences.getBlockSettingsForPackage(null)
         if (!preferences.showUsageNotification() || !settings.focusEnabled ||
-            !(settings.instagramReelsEnabled || settings.youtubeShortsEnabled)
+            !(settings.instagramReelsEnabled || settings.youtubeShortsEnabled || settings.xVideosEnabled)
         ) {
             manager.cancel(NOTIFICATION_ID)
             return

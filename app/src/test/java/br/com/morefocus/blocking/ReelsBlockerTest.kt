@@ -23,7 +23,8 @@ class ReelsBlockerTest {
 
     @Test
     fun exhaustedEnabledViewersGoBackInHardModeAndShowTheWarningInNormalMode() {
-        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen())) {
+        val xViewer = ScreenSnapshot(X_PACKAGE_NAME, "com.x.android.main.MainActivity", setOf("VideoTab"))
+        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen(), xViewer)) {
             fun action(settings: BlockSettings) = engine.verticalVideoAction(
                 settings, engine.isEnabledVerticalVideo(settings, screen), nowMillis = 1_000L
             )
@@ -35,6 +36,20 @@ class ReelsBlockerTest {
             assertEquals(VerticalVideoAction.SHOW_WARNING, action(settingsAtLimit()))
             assertEquals(VerticalVideoAction.NONE, action(settingsAtLimit().copy(pauseUntilMillis = 2_000L)))
         }
+    }
+
+    @Test
+    fun xVideoRuleDistinguishesTheImmersiveFeedFromAnInlinePlayerInTheSameActivity() {
+        val hard = settingsAtLimit().copy(hardBlockVerticalVideos = true)
+        val timeline = ScreenSnapshot(X_PACKAGE_NAME, "com.x.android.main.MainActivity",
+            setOf("MainLanding", "scaffold_home_tabbed", "timeline_post", "exo_content_frame"))
+        assertFalse(engine.isEnabledVerticalVideo(hard, timeline))
+        val video = timeline.copy(resourceIds = setOf("VideoTab", "ImmersiveVideo", "exo_content_frame"))
+        val adBetweenVideos = timeline.copy(resourceIds = setOf("VideoTab", "ssp_immersive_ad_view"))
+        assertTrue(engine.isEnabledVerticalVideo(hard, video))
+        assertTrue(engine.isEnabledVerticalVideo(hard, adBetweenVideos))
+        assertFalse(engine.isEnabledVerticalVideo(hard.copy(xVideosEnabled = false), video))
+        assertFalse(engine.isEnabledVerticalVideo(hard, video.copy(packageName = "com.other")))
     }
 
     @Test

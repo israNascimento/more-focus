@@ -19,6 +19,7 @@ data class MoreFocusUiState(
     val hideFeedShorts: Boolean = false,
     val hardBlockVerticalVideos: Boolean = false,
     val youtubeShortsEnabled: Boolean = true,
+    val xVideosEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
     val dailyVerticalVideosUsageMillis: Long = 0L,
@@ -75,6 +76,11 @@ class MoreFocusViewModel(
         refresh()
     }
 
+    fun setXVideosEnabled(enabled: Boolean) {
+        settingsRepository.setXVideosEnabled(enabled)
+        refresh()
+    }
+
     fun setExponentialPauseLockEnabled(enabled: Boolean) {
         settingsRepository.setExponentialPauseLockEnabled(enabled)
         refresh()
@@ -123,6 +129,7 @@ class MoreFocusViewModel(
             hideFeedShorts = settings.hideFeedShorts,
             hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
+            xVideosEnabled = settings.xVideosEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
             dailyVerticalVideosUsageMillis = blockSettings.dailyVerticalVideosUsageMillis,

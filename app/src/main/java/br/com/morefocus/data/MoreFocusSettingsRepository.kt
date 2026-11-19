@@ -17,7 +17,8 @@ data class MoreFocusSettings(
     val hideFeedReels: Boolean = false,
     val hideFeedShorts: Boolean = false,
     val showUsageNotification: Boolean = true,
-    val hardBlockVerticalVideos: Boolean = false
+    val hardBlockVerticalVideos: Boolean = false,
+    val xVideosEnabled: Boolean = true
 )
 
 interface MoreFocusSettingsRepository {
@@ -47,6 +48,7 @@ interface MoreFocusSettingsRepository {
             focusEnabled = settings.focusEnabled,
             instagramReelsEnabled = settings.instagramReelsEnabled,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
+            xVideosEnabled = settings.xVideosEnabled,
             hideFeedReels = settings.hideFeedReels,
             hideFeedShorts = settings.hideFeedShorts,
             limitedPackages = settings.appLimitRules
@@ -68,6 +70,8 @@ interface MoreFocusSettingsRepository {
     fun setHardBlockVerticalVideos(enabled: Boolean)
 
     fun setYouTubeShortsEnabled(enabled: Boolean)
+
+    fun setXVideosEnabled(enabled: Boolean)
 
     fun setExponentialPauseLockEnabled(enabled: Boolean)
 
@@ -121,6 +125,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
             focusEnabled = preferences.isFocusEnabled(),
             instagramReelsEnabled = preferences.isInstagramReelsEnabled(),
             youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
+            xVideosEnabled = preferences.isXVideosEnabled(),
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules(),
@@ -169,6 +174,11 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun setYouTubeShortsEnabled(enabled: Boolean) {
         preferences.setYouTubeShortsEnabled(enabled)
+        invalidateMonitoringScope()
+    }
+
+    override fun setXVideosEnabled(enabled: Boolean) {
+        preferences.setXVideosEnabled(enabled)
         invalidateMonitoringScope()
     }
 

@@ -4,6 +4,9 @@ private const val MILLIS_PER_SECOND = 1000L
 
 internal const val INSTAGRAM_PACKAGE_NAME = "com.instagram.android"
 internal const val YOUTUBE_PACKAGE_NAME = "com.google.android.youtube"
+internal const val X_PACKAGE_NAME = "com.twitter.android"
+// X exposes this Compose tag throughout the swipeable viewer, including between videos.
+internal const val X_VIDEO_VIEWER_ID = "VideoTab"
 
 data class BlockSettings(
     val focusEnabled: Boolean,
@@ -13,7 +16,8 @@ data class BlockSettings(
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
     val dailyVerticalVideosUsageMillis: Long = 0L,
     val appLimitRules: List<AppLimitRule> = emptyList(),
-    val hardBlockVerticalVideos: Boolean = false
+    val hardBlockVerticalVideos: Boolean = false,
+    val xVideosEnabled: Boolean = true
 ) {
     val dailyVerticalVideosLimitMillis: Long
         get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
@@ -48,7 +52,8 @@ data class MonitoringScope(
     val youtubeShortsEnabled: Boolean,
     val limitedPackages: Set<String>,
     val hideFeedReels: Boolean = false,
-    val hideFeedShorts: Boolean = false
+    val hideFeedShorts: Boolean = false,
+    val xVideosEnabled: Boolean = true
 ) {
     fun monitors(packageName: String?): Boolean =
         monitorsAppLimit(packageName) || monitorsVerticalVideos(packageName)
@@ -66,7 +71,8 @@ data class MonitoringScope(
     fun monitorsVerticalVideos(packageName: String?): Boolean =
         focusEnabled && (
             (instagramReelsEnabled && packageName == INSTAGRAM_PACKAGE_NAME) ||
-                (youtubeShortsEnabled && packageName == YOUTUBE_PACKAGE_NAME)
+                (youtubeShortsEnabled && packageName == YOUTUBE_PACKAGE_NAME) ||
+                (xVideosEnabled && packageName == X_PACKAGE_NAME)
         )
 }
 
@@ -88,7 +94,8 @@ class BlockDecisionEngine(
         screen: ScreenSnapshot
     ): Boolean =
         (settings.instagramReelsEnabled && reelsDetector.isInstagramReels(screen)) ||
-            (settings.youtubeShortsEnabled && shortsBlocker.isYouTubeShorts(screen))
+            (settings.youtubeShortsEnabled && shortsBlocker.isYouTubeShorts(screen)) ||
+            (settings.xVideosEnabled && screen.packageName == X_PACKAGE_NAME && X_VIDEO_VIEWER_ID in screen.resourceIds)
 
     fun verticalVideoAction(
         settings: BlockSettings,

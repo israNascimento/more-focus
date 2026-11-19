@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.ui.MoreFocusUiState
 
@@ -71,6 +72,10 @@ internal enum class FeaturedApp(
     YouTube(
         "youtube", YOUTUBE_PACKAGE_NAME, R.string.youtube_name,
         R.string.shorts_title, R.string.shorts_title, R.drawable.ic_youtube
+    ),
+    X(
+        "x", X_PACKAGE_NAME, R.string.x_name,
+        R.string.x_videos_title, R.string.x_videos_title, R.drawable.ic_x
     )
 }
 
