@@ -12,6 +12,7 @@ import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.ImageView
 import br.com.morefocus.R
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
@@ -121,10 +122,9 @@ internal class FeedVideoMask(private val context: Context, private val windowMan
         val cover = covers.getOrNull(index) ?: VideoCover(context).also(covers::add)
         val wasTouchable = cover.media != null
         cover.media = media.takeIf { blockTaps }
-        val color = if (hideVideos) Color.BLACK else Color.TRANSPARENT
-        if (cover.color != color) {
-            cover.setBackgroundColor(color)
-            cover.color = color
+        if (hideVideos != (cover.drawable != null)) {
+            cover.setBackgroundResource(if (hideVideos) R.color.feed_cover_surface else 0)
+            cover.setImageResource(if (hideVideos) R.mipmap.ic_launcher else 0)
         }
         if (bounds == cover.bounds && wasTouchable == blockTaps) return
         val params = overlayParams(bounds, "MoreFocus Feed Video")
@@ -169,9 +169,8 @@ internal class FeedVideoMask(private val context: Context, private val windowMan
 
     private fun AccessibilityNodeInfo.bounds() = Rect().also(::getBoundsInScreen)
 
-    private class VideoCover(context: Context) : View(context) {
+    private class VideoCover(context: Context) : ImageView(context) {
         var bounds: Rect? = null
-        var color = Color.TRANSPARENT
         var media: AccessibilityNodeInfo? = null
         private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
         private var downX = 0f
@@ -180,6 +179,9 @@ internal class FeedVideoMask(private val context: Context, private val windowMan
 
         init {
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+            scaleType = ScaleType.CENTER_INSIDE
+            val inset = (12 * resources.displayMetrics.density).toInt()
+            setPadding(inset, inset, inset, inset)
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
