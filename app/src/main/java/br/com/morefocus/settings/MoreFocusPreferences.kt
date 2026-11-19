@@ -3,6 +3,7 @@ package br.com.morefocus.settings
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
@@ -49,6 +50,7 @@ class MoreFocusPreferences(context: Context) {
             kwaiFeedEnabled = isKwaiFeedEnabled(),
             tikTokForYouEnabled = isTikTokForYouEnabled(),
             focusSessionEndsAtMillis = focusSessionEndsAtMillis(),
+            scheduledFocus = focusSchedule().currentOrNext(nowMillis),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -76,6 +78,7 @@ class MoreFocusPreferences(context: Context) {
             kwaiFeedEnabled = isKwaiFeedEnabled(),
             tikTokForYouEnabled = isTikTokForYouEnabled(),
             focusSessionEndsAtMillis = focusSessionEndsAtMillis(),
+            scheduledFocus = focusSchedule().currentOrNext(nowMillis),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -104,6 +107,25 @@ class MoreFocusPreferences(context: Context) {
         preferences.getBoolean(KEY_FOCUS_ENABLED, true)
 
     private fun focusSessionEndsAtMillis(): Long = preferences.getLong(KEY_FOCUS_SESSION_END, 0L)
+
+    fun focusSchedule(): FocusSchedule {
+        val defaults = FocusSchedule()
+        return FocusSchedule(
+            enabled = preferences.getBoolean(KEY_SCHEDULE_ENABLED, false),
+            days = preferences.getInt(KEY_SCHEDULE_DAYS, defaults.days),
+            startMinute = preferences.getInt(KEY_SCHEDULE_START, defaults.startMinute),
+            endMinute = preferences.getInt(KEY_SCHEDULE_END, defaults.endMinute)
+        )
+    }
+
+    fun setFocusSchedule(schedule: FocusSchedule) {
+        preferences.edit {
+            putBoolean(KEY_SCHEDULE_ENABLED, schedule.enabled)
+            putInt(KEY_SCHEDULE_DAYS, schedule.days)
+            putInt(KEY_SCHEDULE_START, schedule.startMinute)
+            putInt(KEY_SCHEDULE_END, schedule.endMinute)
+        }
+    }
 
     fun startFocusSession(nowMillis: Long = System.currentTimeMillis()) {
         if (focusSessionEndsAtMillis() > nowMillis) return
@@ -314,15 +336,26 @@ class MoreFocusPreferences(context: Context) {
         val sessionEnd = focusSessionEndsAtMillis()
         val sessionStart = sessionEnd - FOCUS_SESSION_DURATION_MILLIS
         var usage = storedDailyUsageState()
+        val schedule = focusSchedule()
+        fun recordUnscheduled(from: Long, until: Long) {
+            var cursor = from
+            while (cursor < until) {
+                val period = schedule.currentOrNext(cursor)
+                val visibleEnd = minOf(until, period?.start ?: until)
+                if (cursor < visibleEnd) usage = dailyUsageClock.addVisibleTime(usage, cursor, visibleEnd)
+                cursor = period?.end ?: until
+            }
+        }
         var visibleFrom = startedAtMillis
         // A final accessibility event or periodic flush can straddle the start of focus.
         if (startedAtMillis != null && startedAtMillis < sessionEnd && endedAtMillis > sessionStart) {
             if (startedAtMillis < sessionStart) {
-                usage = dailyUsageClock.addVisibleTime(usage, startedAtMillis, sessionStart)
+                recordUnscheduled(startedAtMillis, sessionStart)
             }
             visibleFrom = sessionEnd
         }
-        val updatedState = dailyUsageClock.addVisibleTime(usage, visibleFrom, endedAtMillis)
+        if (visibleFrom != null) recordUnscheduled(visibleFrom, endedAtMillis)
+        val updatedState = dailyUsageClock.stateFor(usage, endedAtMillis)
         saveDailyUsageState(updatedState)
         return updatedState
     }
@@ -479,6 +512,10 @@ class MoreFocusPreferences(context: Context) {
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
         private const val FOCUS_SESSION_DURATION_MILLIS = 30 * 60_000L
+        private const val KEY_SCHEDULE_ENABLED = "focus_schedule_enabled"
+        private const val KEY_SCHEDULE_DAYS = "focus_schedule_days"
+        private const val KEY_SCHEDULE_START = "focus_schedule_start_minute"
+        private const val KEY_SCHEDULE_END = "focus_schedule_end_minute"
         private const val KEY_FOCUS_SESSION_END = "focus_session_ends_at_millis"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
         private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"

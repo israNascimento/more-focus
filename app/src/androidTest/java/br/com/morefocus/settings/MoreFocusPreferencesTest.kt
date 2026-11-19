@@ -35,6 +35,24 @@ class MoreFocusPreferencesTest {
     }
 
     @Test
+    fun weeklySchedulePersistsAndScheduledTimeDoesNotConsumeTheSharedBudget() {
+        val friday = millis(2026, 11, 20, 9)
+        val schedule = br.com.morefocus.blocking.FocusSchedule(enabled = true)
+        preferences.setFocusSchedule(schedule)
+        val reopened = MoreFocusPreferences(context)
+        assertEquals(schedule, reopened.focusSchedule())
+        val end = friday + 3 * 3_600_000L
+        reopened.startFocusSession(end - 5 * 60_000L)
+        assertTrue(reopened.getBlockSettings(end).forcesVideoExit(end))
+        val used = reopened.recordDailyVerticalVideosUsage(friday - 4_000L, end + 25 * 60_000L + 2_000L)
+        assertEquals(6_000L, used.usedMillis)
+        reopened.setFocusSchedule(schedule.copy(enabled = false))
+        val nextFriday = millis(2026, 11, 27, 10)
+        assertFalse(reopened.getBlockSettings(nextFriday).forcesVideoExit(nextFriday))
+        assertEquals(schedule.days, reopened.focusSchedule().days)
+    }
+
+    @Test
     fun focusSessionPersistsAcrossMidnightAndRepeatedStartsKeepTheDeadline() {
         val start = millis(year = 2026, month = 11, day = 19, hour = 23) + 50 * 60_000L
         val end = start + 30 * 60_000L

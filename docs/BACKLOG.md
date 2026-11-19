@@ -14,9 +14,9 @@ Quem vai estudar ou trabalhar pode guardar o saldo diário de vídeos para mais 
 
 Quem tem uma rotina fixa pode programar a mesma proteção da sessão manual, por exemplo, de segunda a sexta, das 9h às 12h.
 
-- [ ] Permitir escolher dias da semana, início e fim do período, além de editar ou desativar o agendamento.
-- [ ] Ativar o bloqueio no início do horário e encerrá-lo ao final. Se uma sessão manual ainda estiver em andamento, manter a proteção até ela terminar.
-- [ ] Verificar que a regra de segunda a sexta se aplica na sexta-feira e deixa o sábado livre.
+- [x] Permitir escolher dias da semana, início e fim do período, além de editar ou desativar o agendamento.
+- [x] Ativar o bloqueio no início do horário e encerrá-lo ao final. Se uma sessão manual ainda estiver em andamento, manter a proteção até ela terminar.
+- [x] Verificar que a regra de segunda a sexta se aplica na sexta-feira e deixa o sábado livre.
 
 ## 3. Fazer uma pausa após alguns minutos seguidos
 

@@ -1,6 +1,7 @@
 package br.com.morefocus.ui
 
 import androidx.lifecycle.ViewModel
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.data.AccessibilityServiceRepository
 import br.com.morefocus.data.InstalledAppsRepository
@@ -30,6 +31,7 @@ data class MoreFocusUiState(
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
     val appLimitSecondOptions: List<Int> = emptyList(),
+    val focusSchedule: FocusSchedule = FocusSchedule(),
     val focusSessionEndsAtMillis: Long = 0L
 ) {
     val hasVerticalVideoRule: Boolean
@@ -47,6 +49,11 @@ class MoreFocusViewModel(
 
     fun refresh() {
         _uiState.value = loadUiState()
+    }
+
+    fun setFocusSchedule(schedule: FocusSchedule) {
+        settingsRepository.setFocusSchedule(schedule)
+        refresh()
     }
 
     fun startFocusSession() {
@@ -151,6 +158,7 @@ class MoreFocusViewModel(
         return MoreFocusUiState(
             focusSessionEndsAtMillis = blockSettings.focusSessionEndsAtMillis
                 .takeIf { it > System.currentTimeMillis() } ?: 0L,
+            focusSchedule = settings.focusSchedule,
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
             showUsageNotification = settings.showUsageNotification,

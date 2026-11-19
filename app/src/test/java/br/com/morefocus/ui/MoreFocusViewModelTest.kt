@@ -1,5 +1,6 @@
 package br.com.morefocus.ui
 
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageState
@@ -217,6 +218,8 @@ class MoreFocusViewModelTest {
         override fun getSettings(): MoreFocusSettings = settings
 
         private var focusSessionEnd = 0L
+
+        override fun setFocusSchedule(schedule: FocusSchedule) { settings = settings.copy(focusSchedule = schedule) }
 
         override fun startFocusSession() { focusSessionEnd = System.currentTimeMillis() + 1_800_000L }
 

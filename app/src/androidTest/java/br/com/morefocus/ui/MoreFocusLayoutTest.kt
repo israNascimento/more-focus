@@ -44,6 +44,24 @@ class MoreFocusLayoutTest {
     private var editedLimit: Pair<String, Int>? = null
 
     @Test
+    fun scheduleCanBeEnabledEditedAndDisabled() {
+        launch()
+        tap("Preferências")
+        fun openSchedule() = compose.onNodeWithText("Horário de foco").performScrollTo().performClick()
+        openSchedule()
+        compose.onNodeWithContentDescription("Ativar agendamento").performClick()
+        val friday = java.text.DateFormatSymbols.getInstance().weekdays[java.util.Calendar.FRIDAY]
+        compose.onNodeWithContentDescription(friday).performClick()
+        tap("Salvar")
+        assertEquals(true, state.focusSchedule.enabled)
+        assertEquals(false, state.focusSchedule.includes(java.util.Calendar.FRIDAY))
+        openSchedule()
+        compose.onNodeWithContentDescription("Ativar agendamento").assertIsOn().performClick()
+        tap("Salvar")
+        assertEquals(false, state.focusSchedule.enabled)
+    }
+
+    @Test
     fun usageOffersOneSessionAndShowsItsEndWithOnlyKwaiEnabled() {
         state = state.copy(instagramReelsEnabled = false, youtubeShortsEnabled = false, facebookReelsEnabled = false,
             xVideosEnabled = false, tikTokForYouEnabled = false)
@@ -136,6 +154,7 @@ class MoreFocusLayoutTest {
             MoreFocusTheme(dynamicColor = false) {
                 MoreFocusScreen(
                     uiState = state,
+                    onSaveFocusSchedule = { state = state.copy(focusSchedule = it) },
                     onStartFocusSession = { state = state.copy(focusSessionEndsAtMillis = System.currentTimeMillis() + 1_800_000L) },
                     onFocusEnabledChange = {},
                     onShowUsageNotificationChange = {},

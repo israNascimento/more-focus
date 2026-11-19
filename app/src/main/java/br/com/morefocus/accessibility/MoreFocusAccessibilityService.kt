@@ -1,6 +1,10 @@
 package br.com.morefocus.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Handler
@@ -14,6 +18,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -80,6 +85,19 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         )
     }
 
+    private val scheduleClockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (!::settingsRepository.isInitialized) return
+            val now = System.currentTimeMillis()
+            val settings = settingsRepository.getBlockSettingsForPackage(null, now)
+            val period = settings.scheduledFocus ?: return
+            if (overlayMessage?.pauseExtensionTarget == PauseExtensionTarget.VerticalVideos &&
+                settings.focusEnabled && now in period
+            ) hideOverlay()
+            evaluateCurrentScreen()
+        }
+    }
+
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
@@ -88,6 +106,12 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     override fun onCreate() {
         super.onCreate()
+        val filter = IntentFilter(Intent.ACTION_TIME_TICK).apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        ContextCompat.registerReceiver(this, scheduleClockReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         savedStateRegistryController.performAttach()
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -388,6 +412,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     override fun onDestroy() {
+        unregisterReceiver(scheduleClockReceiver)
         (application as MoreFocusApplication).appContainer.dailyUsageNotification.stop()
         feedVideoMask?.clear()
         stopTracking(System.currentTimeMillis())
@@ -745,6 +770,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             .takeIf { it > 0L }
         val nextDelayMillis = listOfNotNull(
             (settings.focusSessionEndsAtMillis - nowMillis).takeIf { blockedFeedPackage != null && it > 0L },
+            settings.scheduledFocus?.let { period ->
+                (if (nowMillis in period) period.end else period.start) - nowMillis
+            }?.takeIf { it > 0L },
             pauseDelayMillis,
             appLimitDelayMillis,
             verticalVideosLimitDelayMillis,

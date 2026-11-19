@@ -59,6 +59,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.data.SelectableApp
 import br.com.morefocus.ui.MoreFocusUiState
@@ -148,6 +149,7 @@ private fun MoreFocusApp(
 
     MoreFocusScreen(
         uiState = uiState,
+        onSaveFocusSchedule = viewModel::setFocusSchedule,
         onStartFocusSession = viewModel::startFocusSession,
         onFocusEnabledChange = viewModel::setFocusEnabled,
         onShowUsageNotificationChange = onShowUsageNotificationChange,
@@ -183,6 +185,7 @@ private enum class MoreFocusDestination(
 @Composable
 internal fun MoreFocusScreen(
     uiState: MoreFocusUiState,
+    onSaveFocusSchedule: (FocusSchedule) -> Unit,
     onStartFocusSession: () -> Unit,
     onFocusEnabledChange: (Boolean) -> Unit,
     onShowUsageNotificationChange: (Boolean) -> Unit,
@@ -243,6 +246,7 @@ internal fun MoreFocusScreen(
             composable(MoreFocusDestination.Preferences.route) {
                 PreferencesScreen(
                     uiState = uiState,
+                    onSaveFocusSchedule = onSaveFocusSchedule,
                     onFocusEnabledChange = onFocusEnabledChange,
                     onShowUsageNotificationChange = onShowUsageNotificationChange,
                     onHardBlockVerticalVideosChange = onHardBlockVerticalVideosChange,
@@ -637,6 +641,7 @@ private fun MoreFocusScreenPreview() {
                     60 * 60
                 )
             ),
+            onSaveFocusSchedule = {},
             onStartFocusSession = {},
             onFocusEnabledChange = {},
             onShowUsageNotificationChange = {},

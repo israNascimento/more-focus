@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.KWAI_PACKAGE_NAME
@@ -154,6 +155,7 @@ internal fun AccessibilityStatus(serviceEnabled: Boolean, onOpenSettings: () -> 
 @Composable
 internal fun PreferencesScreen(
     uiState: MoreFocusUiState,
+    onSaveFocusSchedule: (FocusSchedule) -> Unit,
     onFocusEnabledChange: (Boolean) -> Unit,
     onShowUsageNotificationChange: (Boolean) -> Unit,
     onHardBlockVerticalVideosChange: (Boolean) -> Unit,
@@ -164,6 +166,17 @@ internal fun PreferencesScreen(
     onOpenAccessibilitySettings: () -> Unit
 ) {
     var editLimit by rememberSaveable { mutableStateOf(false) }
+    var editSchedule by rememberSaveable { mutableStateOf(false) }
+    if (editSchedule) {
+        FocusScheduleDialog(
+            initial = uiState.focusSchedule,
+            onSave = {
+                onSaveFocusSchedule(it)
+                editSchedule = false
+            },
+            onDismiss = { editSchedule = false }
+        )
+    }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -206,6 +219,8 @@ internal fun PreferencesScreen(
         }
         Column {
             SectionTitle(R.string.general_title)
+            PreferenceLink(stringResource(R.string.focus_schedule), { editSchedule = true }, scheduleSummary(uiState.focusSchedule))
+            HorizontalDivider()
             ToggleRow(
                 title = stringResource(R.string.preference_focus_enabled_title),
                 checked = uiState.focusEnabled,

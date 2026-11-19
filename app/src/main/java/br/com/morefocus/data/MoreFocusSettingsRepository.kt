@@ -1,5 +1,6 @@
 package br.com.morefocus.data
 
+import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageState
@@ -21,7 +22,8 @@ data class MoreFocusSettings(
     val xVideosEnabled: Boolean = true,
     val tikTokForYouEnabled: Boolean = true,
     val facebookReelsEnabled: Boolean = true,
-    val kwaiFeedEnabled: Boolean = true
+    val kwaiFeedEnabled: Boolean = true,
+    val focusSchedule: FocusSchedule = FocusSchedule()
 )
 
 interface MoreFocusSettingsRepository {
@@ -62,6 +64,8 @@ interface MoreFocusSettingsRepository {
                 .mapTo(mutableSetOf()) { it.packageName }
         )
     }
+
+    fun setFocusSchedule(schedule: FocusSchedule)
 
     fun startFocusSession()
 
@@ -137,6 +141,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
     override fun getSettings(): MoreFocusSettings =
         MoreFocusSettings(
             focusEnabled = preferences.isFocusEnabled(),
+            focusSchedule = preferences.focusSchedule(),
             instagramReelsEnabled = preferences.isInstagramReelsEnabled(),
             youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
             xVideosEnabled = preferences.isXVideosEnabled(),
@@ -164,6 +169,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
         cachedMonitoringScope ?: preferences.getMonitoringScope().also { scope ->
             cachedMonitoringScope = scope
         }
+
+    override fun setFocusSchedule(schedule: FocusSchedule) = preferences.setFocusSchedule(schedule)
 
     override fun startFocusSession() = preferences.startFocusSession()
 
