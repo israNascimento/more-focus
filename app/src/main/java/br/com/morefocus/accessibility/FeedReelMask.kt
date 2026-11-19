@@ -59,8 +59,6 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
             ?: return emptyList()
         val viewport = feed.bounds()
         if (feedBar.isVisibleToUser) viewport.top = maxOf(viewport.top, feedBar.bounds().bottom)
-        val headers = root.nodes("row_feed_profile_header").filter { it.isVisibleToUser }
-            .map { it.bounds() }
         return root.nodes("media_group").mapNotNull { media ->
             // The inline Reel player contains media_group. Carousel slides use separate media IDs.
             val isInlinePlayer = media.parent?.viewIdResourceName == "$INSTAGRAM_PACKAGE_NAME:id/video_container"
@@ -68,11 +66,7 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
                 return@mapNotNull null
             }
             val area = media.bounds()
-            if (!area.intersect(viewport)) return@mapNotNull null
-            for (header in headers) {
-                if (area.top >= header.top && area.top < header.bottom) area.top = header.bottom
-            }
-            area.takeUnless { it.isEmpty }
+            area.takeIf { it.intersect(viewport) }
         }
     }
 
