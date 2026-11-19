@@ -2,6 +2,7 @@ package br.com.morefocus.settings
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
 import org.junit.After
@@ -92,6 +93,24 @@ class MoreFocusPreferencesTest {
 
         assertFalse(preferences.isInstagramReelsEnabled())
         assertFalse(preferences.isYouTubeShortsEnabled())
+    }
+
+    @Test
+    fun hardBlockPersistsButTheExhaustedReelsBudgetResetsTheNextDay() {
+        val today = millis(year = 2026, month = 7, day = 8, hour = 10)
+        val tomorrow = millis(year = 2026, month = 7, day = 9, hour = 10)
+        preferences.setDailyVerticalVideosLimitSeconds(30)
+        preferences.recordDailyVerticalVideosUsage(today - 30_000L, today)
+        assertFalse(preferences.getBlockSettings(today).hardBlocksInstagramReels)
+
+        preferences.setHardBlockReels(true)
+        val reloaded = MoreFocusPreferences(context)
+        assertFalse(reloaded.hideFeedReels())
+        val todaySettings = reloaded.getBlockSettingsForPackage(INSTAGRAM_PACKAGE_NAME, today)
+        val tomorrowSettings = reloaded.getBlockSettingsForPackage(INSTAGRAM_PACKAGE_NAME, tomorrow)
+        assertTrue(todaySettings.hardBlocksInstagramReels)
+        assertFalse(tomorrowSettings.hardBlocksInstagramReels)
+        assertTrue(reloaded.hardBlockReels())
     }
 
     @Test

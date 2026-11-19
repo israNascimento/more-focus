@@ -49,6 +49,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private lateinit var settingsRepository: MoreFocusSettingsRepository
     private lateinit var windowManager: WindowManager
     private var watchingFeedReels = false
+    private var blockFeedReelTaps = false
+    private var nextReelBackAtUptime = 0L
     private var feedReelMask: FeedReelMask? = null
     private var overlayView: View? = null
     private var overlayMessage: OverlayMessage? = null
@@ -93,6 +95,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         feedReelMask = FeedReelMask(this, windowManager)
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         updateFeedReelMask(null)
+        evaluateCurrentScreen()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -127,8 +130,12 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private fun updateFeedReelMask(eventPackage: String?): Boolean {
         val scope = settingsRepository.getMonitoringScope()
         val checkWindow = eventPackage == INSTAGRAM_PACKAGE_NAME || eventPackage == null || watchingFeedReels
-        val root = if (scope.hideFeedReels && scope.focusEnabled && checkWindow) rootInActiveWindow else null
-        val watch = scope.masksFeedReels(root?.packageName?.toString())
+        val hideReels = scope.masksFeedReels(INSTAGRAM_PACKAGE_NAME)
+        val blockTaps = blockFeedReelTaps && scope.monitorsVerticalVideos(INSTAGRAM_PACKAGE_NAME)
+        val root = if ((hideReels || blockTaps) && checkWindow) {
+            foregroundRoot()
+        } else null
+        val watch = root?.packageName == INSTAGRAM_PACKAGE_NAME
         if (watch != watchingFeedReels) {
             watchingFeedReels = watch
             val info = serviceInfo
@@ -137,8 +144,20 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             info.notificationTimeout = if (watch) 32L else EVENT_EVALUATION_INTERVAL_MILLIS
             serviceInfo = info
         }
-        if (watch) feedReelMask?.update(root) else feedReelMask?.clear()
+        if (watch) feedReelMask?.update(root, hideReels, blockTaps)
+        else feedReelMask?.clear()
         return watch
+    }
+
+    private fun foregroundRoot(): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow
+        if (watchingFeedReels && root?.packageName == packageName) {
+            // A touch on a Reel cover can make our overlay the active window.
+            return windows.firstOrNull {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
+            }?.root
+        }
+        return root
     }
 
     private fun evaluateCurrentScreen(eventContext: AccessibilityEventContext? = null) {
@@ -155,7 +174,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         var rootWasResolved = false
         fun activeRoot(): AccessibilityNodeInfo? {
             if (!rootWasResolved) {
-                resolvedRoot = rootInActiveWindow
+                resolvedRoot = foregroundRoot()
                 rootWasResolved = true
             }
             return resolvedRoot
@@ -166,6 +185,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             ?: activeRoot()?.packageName?.toString()
         // Updating the notification can emit status bar events while the video is still in focus.
         val trackedVideoPackage = verticalVideosSessionPackageName
+            ?: INSTAGRAM_PACKAGE_NAME.takeIf { blockFeedReelTaps }
         if (trackedVideoPackage != null && packageName != trackedVideoPackage &&
             activeRoot()?.packageName?.toString() == trackedVideoPackage
         ) return
@@ -173,6 +193,11 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val monitoringScope = settingsRepository.getMonitoringScope()
 
         if (!monitoringScope.monitors(packageName)) {
+            if (blockFeedReelTaps) {
+                blockFeedReelTaps = false
+                updateFeedReelMask(packageName)
+            }
+            nextReelBackAtUptime = 0L
             finishTracking(nowMillis)
             hideOverlay()
             return
@@ -185,9 +210,26 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             nowMillis = nowMillis
         )
         val settings = storedSettings.withActiveUsage(packageName, nowMillis)
+        val hardBlock = packageName == INSTAGRAM_PACKAGE_NAME && settings.hardBlocksInstagramReels
+        if (hardBlock != blockFeedReelTaps) {
+            blockFeedReelTaps = hardBlock
+            updateFeedReelMask(packageName)
+        }
 
         val isInstagramReels = monitoringScope.instagramReelsEnabled &&
             packageName == INSTAGRAM_PACKAGE_NAME && isCurrentInstagramViewer(activeRoot(), className)
+        if (hardBlock && isInstagramReels) {
+            finishTracking(nowMillis)
+            val uptime = SystemClock.uptimeMillis()
+            if (uptime >= nextReelBackAtUptime) {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                nextReelBackAtUptime = uptime + REEL_BACK_RETRY_MILLIS
+            }
+            // Recheck the foreground after navigation before issuing another Back.
+            scheduleEvaluation(nextReelBackAtUptime - uptime)
+            return
+        }
+        nextReelBackAtUptime = 0L
         val isYouTubeShorts = if (
             monitoringScope.youtubeShortsEnabled &&
             packageName == YOUTUBE_PACKAGE_NAME
@@ -618,7 +660,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val isTrackingApp = settings.focusEnabled && settings.appLimitRuleFor(packageName) != null
         val isTrackingVerticalVideos = settings.focusEnabled && isEnabledVerticalVideo
 
-        if (!isTrackingApp && !isTrackingVerticalVideos) {
+        if (!isTrackingApp && !isTrackingVerticalVideos && !blockFeedReelTaps) {
             cancelScheduledCheck()
             return
         }
@@ -632,7 +674,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             settings.remainingDailyVerticalVideosLimitMillis
             .takeIf {
                 isTrackingVerticalVideos &&
-                    settings.pauseUntilMillis <= nowMillis &&
+                    (settings.pauseUntilMillis <= nowMillis ||
+                        (packageName == INSTAGRAM_PACKAGE_NAME && settings.hardBlockReels)) &&
                     it > 0L
             }
         val resetDelayMillis = dailyUsageClock.millisUntilNextDay(nowMillis)
@@ -668,6 +711,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         const val PAUSE_DURATION_MILLIS = 1 * 60 * 1000L
         const val MIN_SCHEDULE_DELAY_MILLIS = 250L
         const val EVENT_EVALUATION_INTERVAL_MILLIS = 250L
+        const val REEL_BACK_RETRY_MILLIS = 1_000L
         const val USAGE_FLUSH_INTERVAL_MILLIS = 5 * 1000L
     }
 }

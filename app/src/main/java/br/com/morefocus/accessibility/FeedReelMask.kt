@@ -1,20 +1,21 @@
 package br.com.morefocus.accessibility
 
 import android.content.Context
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Build
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import br.com.morefocus.R
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import kotlin.math.abs
 
-internal class FeedReelMask(context: Context, private val windowManager: WindowManager) {
+internal class FeedReelMask(private val context: Context, private val windowManager: WindowManager) {
     private var tabBounds: Rect? = null
     private val tabBlocker = View(context).apply {
         setBackgroundColor(Color.argb(104, 128, 128, 128))
@@ -22,52 +23,59 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
         isClickable = true
         isEnabled = false
     }
-    private var areas: List<Rect> = emptyList()
-    private val paint = Paint().apply { color = Color.BLACK }
-    private val origin = IntArray(2)
-    private val view = object : View(context) {
-        override fun onDraw(canvas: Canvas) {
-            getLocationOnScreen(origin)
-            canvas.save()
-            canvas.translate(-origin[0].toFloat(), -origin[1].toFloat())
-            for (area in areas) canvas.drawRect(area, paint)
-            canvas.restore()
-        }
-    }.apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+    private val covers = mutableListOf<ReelCover>()
 
-    fun update(root: AccessibilityNodeInfo?) {
-        if (root?.packageName != INSTAGRAM_PACKAGE_NAME) {
-            clear()
-            return
-        }
-        val tab = root.nodes("clips_tab").firstOrNull {
+    fun update(root: AccessibilityNodeInfo, hideReels: Boolean, blockTaps: Boolean) {
+        val tab = if (hideReels) root.nodes("clips_tab").firstOrNull {
             it.isVisibleToUser && it.isClickable
-        }
+        } else null
         updateTabBlocker(tab?.bounds()?.takeUnless { it.isEmpty })
-        val next = reelAreas(root)
-        if (next == areas) return
-        if (next.isEmpty()) {
-            clearMedia()
-            return
+
+        val feedBar = root.nodes("main_feed_action_bar").firstOrNull()
+        val feed = root.nodes("refreshable_container").firstOrNull { it.isVisibleToUser }
+        var count = 0
+        if (feedBar != null && feed != null) {
+            val viewport = feed.bounds()
+            if (feedBar.isVisibleToUser) viewport.top = maxOf(viewport.top, feedBar.bounds().bottom)
+            for (media in root.nodes("media_group")) {
+                // The inline Reel player contains media_group. Carousel slides use separate media IDs.
+                if (!media.isVisibleToUser || media.parent?.viewIdResourceName !=
+                    "$INSTAGRAM_PACKAGE_NAME:id/video_container"
+                ) continue
+                val bounds = media.bounds()
+                if (!bounds.intersect(viewport)) continue
+                updateCover(count++, media, bounds, hideReels, blockTaps)
+            }
         }
-        val needsWindow = areas.isEmpty()
-        areas = next
-        if (needsWindow) {
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                PixelFormat.TRANSLUCENT
-            ).apply { title = "MoreFocus Feed Reels" }
-            windowManager.addView(view, params)
-        }
-        view.invalidate()
+        removeExtraCovers(count)
     }
 
     fun clear() {
         updateTabBlocker(null)
-        clearMedia()
+        removeExtraCovers(0)
+    }
+
+    private fun removeExtraCovers(count: Int) {
+        while (covers.size > count) windowManager.removeViewImmediate(covers.removeAt(covers.lastIndex))
+    }
+
+    private fun updateCover(
+        index: Int, media: AccessibilityNodeInfo, bounds: Rect, hideReels: Boolean, blockTaps: Boolean
+    ) {
+        val cover = covers.getOrNull(index) ?: ReelCover(context).also(covers::add)
+        val wasTouchable = cover.media != null
+        cover.media = media.takeIf { blockTaps }
+        val color = if (hideReels) Color.BLACK else Color.TRANSPARENT
+        if (cover.color != color) {
+            cover.setBackgroundColor(color)
+            cover.color = color
+        }
+        if (bounds == cover.bounds && wasTouchable == blockTaps) return
+        val params = overlayParams(bounds, "MoreFocus Feed Reel")
+        if (!blockTaps) params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        if (cover.bounds == null) windowManager.addView(cover, params)
+        else windowManager.updateViewLayout(cover, params)
+        cover.bounds = bounds
     }
 
     private fun updateTabBlocker(bounds: Rect?) {
@@ -78,51 +86,67 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
             windowManager.removeViewImmediate(tabBlocker)
             return
         }
-        val params = WindowManager.LayoutParams(
-            bounds.width(), bounds.height(),
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            title = "MoreFocus Reels Tab"
-            gravity = Gravity.TOP or Gravity.LEFT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                setFitInsetsTypes(0)
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            }
-            x = bounds.left
-            y = bounds.top
-        }
+        val params = overlayParams(bounds, "MoreFocus Reels Tab")
         if (wasVisible) windowManager.updateViewLayout(tabBlocker, params)
         else windowManager.addView(tabBlocker, params)
     }
 
-    private fun clearMedia() {
-        if (areas.isEmpty()) return
-        areas = emptyList()
-        windowManager.removeViewImmediate(view)
-    }
-
-    private fun reelAreas(root: AccessibilityNodeInfo): List<Rect> {
-        val feedBar = root.nodes("main_feed_action_bar").firstOrNull() ?: return emptyList()
-        val feed = root.nodes("refreshable_container").firstOrNull { it.isVisibleToUser }
-            ?: return emptyList()
-        val viewport = feed.bounds()
-        if (feedBar.isVisibleToUser) viewport.top = maxOf(viewport.top, feedBar.bounds().bottom)
-        return root.nodes("media_group").mapNotNull { media ->
-            // The inline Reel player contains media_group. Carousel slides use separate media IDs.
-            val isInlinePlayer = media.parent?.viewIdResourceName == "$INSTAGRAM_PACKAGE_NAME:id/video_container"
-            if (!media.isVisibleToUser || !isInlinePlayer) {
-                return@mapNotNull null
-            }
-            val area = media.bounds()
-            area.takeIf { it.intersect(viewport) }
+    private fun overlayParams(bounds: Rect, windowTitle: String) = WindowManager.LayoutParams(
+        bounds.width(), bounds.height(),
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT
+    ).apply {
+        title = windowTitle
+        gravity = Gravity.TOP or Gravity.LEFT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setFitInsetsTypes(0)
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
+        x = bounds.left
+        y = bounds.top
     }
 
     private fun AccessibilityNodeInfo.nodes(id: String): List<AccessibilityNodeInfo> =
         findAccessibilityNodeInfosByViewId("$INSTAGRAM_PACKAGE_NAME:id/$id")
 
     private fun AccessibilityNodeInfo.bounds() = Rect().also(::getBoundsInScreen)
+
+    private class ReelCover(context: Context) : View(context) {
+        var bounds: Rect? = null
+        var color = Color.TRANSPARENT
+        var media: AccessibilityNodeInfo? = null
+        private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+        private var downX = 0f
+        private var downY = 0f
+        private var scrolled = false
+
+        init {
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    scrolled = false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = event.rawY - downY
+                    if (!scrolled && abs(dy) > touchSlop && abs(dy) > abs(event.rawX - downX)) {
+                        scrolled = true
+                        val action = if (dy < 0) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                            else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                        var node = media?.parent
+                        while (node != null) {
+                            if (node.isScrollable && node.performAction(action)) break
+                            node = node.parent
+                        }
+                    }
+                }
+            }
+            return true
+        }
+    }
 }

@@ -12,7 +12,8 @@ data class BlockSettings(
     val pauseUntilMillis: Long = 0L,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
     val dailyVerticalVideosUsageMillis: Long = 0L,
-    val appLimitRules: List<AppLimitRule> = emptyList()
+    val appLimitRules: List<AppLimitRule> = emptyList(),
+    val hardBlockReels: Boolean = false
 ) {
     val dailyVerticalVideosLimitMillis: Long
         get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
@@ -20,6 +21,10 @@ data class BlockSettings(
     val remainingDailyVerticalVideosLimitMillis: Long
         get() = (dailyVerticalVideosLimitMillis - dailyVerticalVideosUsageMillis)
             .coerceAtLeast(0L)
+
+    val hardBlocksInstagramReels: Boolean
+        get() = hardBlockReels && focusEnabled && instagramReelsEnabled &&
+            remainingDailyVerticalVideosLimitMillis == 0L
 
     fun appLimitRuleFor(packageName: String?): AppLimitRule? =
         packageName
@@ -92,6 +97,7 @@ class BlockDecisionEngine(
         isYouTubeShorts: Boolean,
         nowMillis: Long
     ): Boolean {
+        if (isInstagramReels && settings.hardBlocksInstagramReels) return true
         if (!settings.focusEnabled) return false
         if (settings.pauseUntilMillis > nowMillis) return false
         if (!settings.isEnabledVerticalVideo(isInstagramReels, isYouTubeShorts)) return false

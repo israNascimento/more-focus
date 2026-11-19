@@ -43,7 +43,8 @@ class MoreFocusPreferences(context: Context) {
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
-            appLimitRules = appLimitRules(nowMillis)
+            appLimitRules = appLimitRules(nowMillis),
+            hardBlockReels = hardBlockReels()
         )
     }
 
@@ -64,7 +65,8 @@ class MoreFocusPreferences(context: Context) {
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
-            appLimitRules = listOfNotNull(activeRule)
+            appLimitRules = listOfNotNull(activeRule),
+            hardBlockReels = hardBlockReels()
         )
     }
 
@@ -105,6 +107,12 @@ class MoreFocusPreferences(context: Context) {
 
     fun setHideFeedReels(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_HIDE_FEED_REELS, enabled) }
+    }
+
+    fun hardBlockReels(): Boolean = preferences.getBoolean(KEY_HARD_BLOCK_REELS, false)
+
+    fun setHardBlockReels(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_HARD_BLOCK_REELS, enabled) }
     }
 
     fun isYouTubeShortsEnabled(): Boolean =
@@ -410,6 +418,7 @@ class MoreFocusPreferences(context: Context) {
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
         private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"
         private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"
+        private const val KEY_HARD_BLOCK_REELS = "hard_block_reels"
         private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =
             "vertical_videos_instagram_reels_enabled"
         private const val KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED =

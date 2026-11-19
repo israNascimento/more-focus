@@ -16,6 +16,7 @@ data class MoreFocusUiState(
     val showUsageNotification: Boolean = true,
     val instagramReelsEnabled: Boolean = true,
     val hideFeedReels: Boolean = false,
+    val hardBlockReels: Boolean = false,
     val youtubeShortsEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
@@ -55,6 +56,11 @@ class MoreFocusViewModel(
 
     fun setHideFeedReels(enabled: Boolean) {
         settingsRepository.setHideFeedReels(enabled)
+        refresh()
+    }
+
+    fun setHardBlockReels(enabled: Boolean) {
+        settingsRepository.setHardBlockReels(enabled)
         refresh()
     }
 
@@ -108,6 +114,7 @@ class MoreFocusViewModel(
             showUsageNotification = settings.showUsageNotification,
             instagramReelsEnabled = settings.instagramReelsEnabled,
             hideFeedReels = settings.hideFeedReels,
+            hardBlockReels = settings.hardBlockReels,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,

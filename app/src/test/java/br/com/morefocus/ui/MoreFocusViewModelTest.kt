@@ -76,6 +76,9 @@ class MoreFocusViewModelTest {
         viewModel.setInstagramReelsEnabled(false)
         viewModel.setHideFeedReels(true)
         assertTrue(viewModel.uiState.value.hideFeedReels)
+        assertFalse(viewModel.uiState.value.hardBlockReels)
+        viewModel.setHardBlockReels(true)
+        assertTrue(viewModel.uiState.value.hardBlockReels)
         viewModel.setShowUsageNotification(false)
         assertFalse(viewModel.uiState.value.showUsageNotification)
         viewModel.setYouTubeShortsEnabled(false)
@@ -206,6 +209,7 @@ class MoreFocusViewModelTest {
             BlockSettings(
                 focusEnabled = settings.focusEnabled,
                 instagramReelsEnabled = settings.instagramReelsEnabled,
+                hardBlockReels = settings.hardBlockReels,
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
                 dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
                 dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
@@ -222,6 +226,10 @@ class MoreFocusViewModelTest {
 
         override fun setHideFeedReels(enabled: Boolean) {
             settings = settings.copy(hideFeedReels = enabled)
+        }
+
+        override fun setHardBlockReels(enabled: Boolean) {
+            settings = settings.copy(hardBlockReels = enabled)
         }
 
         override fun setShowUsageNotification(show: Boolean) {

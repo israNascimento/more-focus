@@ -15,7 +15,8 @@ data class MoreFocusSettings(
     val dailyVerticalVideosLimitSeconds: Int,
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val hideFeedReels: Boolean = false,
-    val showUsageNotification: Boolean = true
+    val showUsageNotification: Boolean = true,
+    val hardBlockReels: Boolean = false
 )
 
 interface MoreFocusSettingsRepository {
@@ -59,6 +60,8 @@ interface MoreFocusSettingsRepository {
     fun setInstagramReelsEnabled(enabled: Boolean)
 
     fun setHideFeedReels(enabled: Boolean)
+
+    fun setHardBlockReels(enabled: Boolean)
 
     fun setYouTubeShortsEnabled(enabled: Boolean)
 
@@ -118,6 +121,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules(),
             hideFeedReels = preferences.hideFeedReels(),
+            hardBlockReels = preferences.hardBlockReels(),
             showUsageNotification = preferences.showUsageNotification()
         )
 
@@ -150,6 +154,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.setHideFeedReels(enabled)
         invalidateMonitoringScope()
     }
+
+    override fun setHardBlockReels(enabled: Boolean) = preferences.setHardBlockReels(enabled)
 
     override fun setYouTubeShortsEnabled(enabled: Boolean) {
         preferences.setYouTubeShortsEnabled(enabled)

@@ -8,6 +8,28 @@ class ReelsBlockerTest {
     private val engine = BlockDecisionEngine(ReelsDetector(), ShortsBlocker())
 
     @Test
+    fun hardBlockRequiresAnEnabledInstagramRuleAndAnExhaustedDailyBudget() {
+        val settings = settingsAtLimit().copy(hardBlockReels = true)
+        assertTrue(settings.hardBlocksInstagramReels)
+        val justBeforeLimit = settings.copy(
+            dailyVerticalVideosUsageMillis = settings.dailyVerticalVideosLimitMillis - 1
+        )
+        assertFalse(justBeforeLimit.hardBlocksInstagramReels)
+        assertFalse(settings.copy(dailyVerticalVideosUsageMillis = 0L).hardBlocksInstagramReels)
+        assertFalse(settings.copy(instagramReelsEnabled = false).hardBlocksInstagramReels)
+        assertFalse(settings.copy(focusEnabled = false).hardBlocksInstagramReels)
+        assertFalse(settingsAtLimit().hardBlocksInstagramReels)
+    }
+
+    @Test
+    fun aPauseCannotReopenAnExhaustedReelButStillAppliesToShorts() {
+        val settings = settingsAtLimit().copy(hardBlockReels = true, pauseUntilMillis = 2_000L)
+        assertTrue(engine.shouldBlock(settings, explicitReelsScreen(), nowMillis = 1_000L))
+        assertFalse(engine.shouldBlock(settings, youtubeShortsScreen(), nowMillis = 1_000L))
+        assertFalse(engine.shouldBlock(settings, instagramScreen("Feed"), nowMillis = 1_000L))
+    }
+
+    @Test
     fun blocksConfiguredAppWhenDailyLimitIsReached() {
         assertTrue(
             engine.shouldBlock(
