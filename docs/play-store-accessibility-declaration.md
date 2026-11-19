@@ -2,13 +2,13 @@
 
 ## Core functionality
 
-MoreFocus is a focus app that helps users set local daily limits for selected apps and keep a shared daily limit for vertical videos on Instagram Reels and YouTube Shorts. The accessibility service identifies the app in the foreground, counts local usage time for user-selected app rules, detects when the active Instagram or YouTube screen appears to be Reels or Shorts, and shows a user-controlled focus warning after a chosen daily limit is reached. An optional setting covers inline Reels in the Instagram home feed with a black overlay that allows scrolling.
+MoreFocus is a focus app that helps users set local daily limits for selected apps and keep a shared daily limit for vertical videos on Instagram Reels and YouTube Shorts. The accessibility service identifies the app in the foreground, counts local usage time for user-selected app rules, detects when the active Instagram or YouTube screen appears to be Reels or Shorts, and shows a user-controlled focus warning after a chosen daily limit is reached. An optional setting covers inline Reels in the Instagram home feed with a black overlay that allows scrolling and blocks taps on the Reels tab in the Instagram bottom navigation bar.
 
 ## Accessibility API usage
 
 MoreFocus uses `AccessibilityService` to identify the foreground app package name for user-selected app limits. For the vertical videos rules, it also reads the active Instagram and YouTube window hierarchies, including visible text, content descriptions, view identifiers, package name, and class name.
 
-The app uses this data only on the device to decide whether selected app usage or vertical video viewing time should be counted and whether to show the MoreFocus warning overlay. When feed masking is enabled, the service also reads media bounds to position the mask as the user scrolls. It does not capture screenshots, record video, use OCR, upload screen data, sell data, share data, or use the data for ads or analytics.
+The app uses this data only on the device to decide whether selected app usage or vertical video viewing time should be counted and whether to show the MoreFocus warning overlay. When feed masking is enabled, the service also reads the bounds of the media and the Reels tab to position the feed mask and the touch blocker. It does not capture screenshots, record video, use OCR, upload screen data, sell data, share data, or use the data for ads or analytics.
 
 ## User disclosure and consent
 

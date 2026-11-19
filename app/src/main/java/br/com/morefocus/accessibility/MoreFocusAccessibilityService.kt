@@ -2,6 +2,7 @@ package br.com.morefocus.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -10,6 +11,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -94,8 +96,23 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (overlayView != null || overlayMutationInProgress) return
-        if (!::settingsRepository.isInitialized) return
+        if (overlayMutationInProgress || !::settingsRepository.isInitialized) return
+        if (overlayView != null) {
+            val message = overlayMessage ?: return
+            if (message.pauseExtensionTarget != PauseExtensionTarget.VerticalVideos ||
+                message.verticalVideosPackageNameToTrackOnPause != INSTAGRAM_PACKAGE_NAME
+            ) return
+
+            // The touchable dialog can be the active accessibility window. Inspect the app below it.
+            val appRoot = windows.firstOrNull {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
+            }?.root ?: return
+            if (appRoot.packageName == INSTAGRAM_PACKAGE_NAME && visibleHomeMarker(appRoot) == null) return
+            hideOverlay()
+            updateFeedReelMask(appRoot.packageName?.toString())
+            evaluateCurrentScreen(AccessibilityEventContext(appRoot.packageName?.toString(), null))
+            return
+        }
         val eventPackage = event?.packageName?.toString()
         if (updateFeedReelMask(eventPackage) && eventPackage == packageName) return
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
@@ -163,26 +180,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         )
         val settings = storedSettings.withActiveUsage(packageName, nowMillis)
 
-        val isInstagramReels = if (
-            monitoringScope.instagramReelsEnabled &&
-            packageName == INSTAGRAM_PACKAGE_NAME
-        ) {
-            val instagramClassName = className ?: activeRoot()?.className?.toString()
-            if (reelsDetector.hasViewerClass(instagramClassName)) {
-                true
-            } else {
-                val resourceIds = AccessibilityNodeScanner.resourceEntryNames(
-                    root = activeRoot(),
-                    resourceIdsOfInterest = reelsDetector.resourceIdsOfInterest,
-                    hasConclusiveMatch = reelsDetector::hasConclusiveResourceMatch
-                )
-                reelsDetector.isInstagramReels(
-                    ScreenSnapshot(packageName, instagramClassName, resourceIds)
-                )
-            }
-        } else {
-            false
-        }
+        val isInstagramReels = monitoringScope.instagramReelsEnabled &&
+            packageName == INSTAGRAM_PACKAGE_NAME && isCurrentInstagramViewer(activeRoot(), className)
         val isYouTubeShorts = if (
             monitoringScope.youtubeShortsEnabled &&
             packageName == YOUTUBE_PACKAGE_NAME
@@ -255,6 +254,30 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                 nowMillis
             )
         }
+    }
+
+    private fun visibleHomeMarker(root: AccessibilityNodeInfo): String? {
+        val viewport = Rect().also(root::getBoundsInScreen)
+        return reelsDetector.homeFeedResourceIds.firstOrNull { id ->
+            root.findAccessibilityNodeInfosByViewId("$INSTAGRAM_PACKAGE_NAME:id/$id").any { node ->
+                node.isVisibleToUser && Rect.intersects(viewport, Rect().also(node::getBoundsInScreen))
+            }
+        }
+    }
+
+    private fun isCurrentInstagramViewer(root: AccessibilityNodeInfo?, eventClass: String?): Boolean {
+        if (root?.packageName != INSTAGRAM_PACKAGE_NAME) return false
+        val className = eventClass ?: root.className?.toString()
+        val homeMarker = visibleHomeMarker(root)
+        val ids = when {
+            homeMarker != null -> setOf(homeMarker)
+            reelsDetector.hasViewerClass(className) -> emptySet()
+            else -> AccessibilityNodeScanner.resourceEntryNames(
+                root, reelsDetector.resourceIdsOfInterest, visibleOnly = true,
+                hasConclusiveMatch = reelsDetector::hasConclusiveResourceMatch
+            )
+        }
+        return reelsDetector.isInstagramReels(ScreenSnapshot(INSTAGRAM_PACKAGE_NAME, className, ids))
     }
 
     override fun onInterrupt() {

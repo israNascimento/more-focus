@@ -19,14 +19,15 @@
     <string name="usage_limit_reached">Limite atingido</string>
     <string name="usage_rule_disabled">Regra desativada</string>
     <string name="accessibility_disclosure_title">Uso da acessibilidade</string>
-    <string name="accessibility_disclosure_description">O MoreFocus usa eventos de acessibilidade para identificar o aplicativo em primeiro plano e lê textos, descrições e identificadores das telas do Instagram e YouTube para detectar Reels e Shorts. Se você ativar a opção, ele também usa a posição dos Reels para cobri-los no feed do Instagram. Ele não captura imagens, não grava vídeos e não envia dados.</string>
+    <string name="accessibility_disclosure_description">O MoreFocus usa eventos de acessibilidade para identificar o aplicativo em primeiro plano e lê textos, descrições e identificadores das telas do Instagram e YouTube para detectar Reels e Shorts. Se você ativar a opção, ele também usa a posição dos Reels e do botão da aba Reels para cobrir os vídeos no feed e bloquear o toque nesse botão. Ele não captura imagens, não grava vídeos e não envia dados.</string>
     <string name="preferences_title">Preferências</string>
     <string name="preference_focus_enabled_title">MoreFocus ativo</string>
     <string name="preference_focus_enabled_description">Permite aplicar as regras selecionadas.</string>
     <string name="preference_instagram_reels_enabled_title">Limitar Instagram Reels</string>
     <string name="preference_instagram_reels_enabled_description">Conta o tempo de Reels no limite compartilhado de vídeos verticais.</string>
     <string name="preference_hide_feed_reels_title">Ocultar Reels no feed</string>
-    <string name="preference_hide_feed_reels_description">Cobre os Reels do feed do Instagram com uma camada preta. O áudio pode continuar tocando.</string>
+    <string name="reels_tab_blocked">Aba Reels bloqueada pelo MoreFocus</string>
+    <string name="preference_hide_feed_reels_description">Cobre os Reels no feed do Instagram e bloqueia o botão Reels na barra inferior. O áudio pode continuar tocando.</string>
     <string name="preference_youtube_shorts_enabled_title">Limitar YouTube Shorts</string>
     <string name="preference_youtube_shorts_enabled_description">Conta o tempo de Shorts no limite compartilhado de vídeos verticais.</string>
     <string name="preference_exponential_pause_lock_title">Bloqueio exponencial do +1 minuto</string>

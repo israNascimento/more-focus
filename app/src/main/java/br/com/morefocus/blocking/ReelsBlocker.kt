@@ -114,9 +114,13 @@ class BlockDecisionEngine(
 }
 
 class ReelsDetector {
+    // Home and the Reels viewer can coexist in Instagram's tab pager.
+    val homeFeedResourceIds = setOf("main_feed_action_bar", "sticky_header_list")
+
     fun isInstagramReels(screen: ScreenSnapshot): Boolean {
         if (screen.packageName != INSTAGRAM_PACKAGE_NAME) return false
 
+        if (screen.resourceIds.any { it in homeFeedResourceIds }) return false
         if (hasViewerClass(screen.className)) return true
 
         return hasConclusiveResourceMatch(screen.resourceIds)

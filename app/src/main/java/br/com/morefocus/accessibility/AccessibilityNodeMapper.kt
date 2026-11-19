@@ -6,6 +6,7 @@ object AccessibilityNodeScanner {
     fun resourceEntryNames(
         root: AccessibilityNodeInfo?,
         resourceIdsOfInterest: Set<String>,
+        visibleOnly: Boolean = false,
         hasConclusiveMatch: (Set<String>) -> Boolean
     ): Set<String> {
         if (root == null || resourceIdsOfInterest.isEmpty()) return emptySet()
@@ -23,7 +24,8 @@ object AccessibilityNodeScanner {
                 val resourceEntryName = frame.node.viewIdResourceName.resourceEntryName()
                 if (
                     resourceEntryName != null &&
-                    resourceEntryName in resourceIdsOfInterest
+                    resourceEntryName in resourceIdsOfInterest &&
+                    (!visibleOnly || frame.node.isVisibleToUser)
                 ) {
                     matches.add(resourceEntryName)
                     if (hasConclusiveMatch(matches)) return matches

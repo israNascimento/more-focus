@@ -325,6 +325,16 @@ class ReelsBlockerTest {
     }
 
     @Test
+    fun visibleHomeFeedTakesPrecedenceOverViewerEventsAndRetainedViewerIds() {
+        val screen = explicitReelsScreen().copy(
+            className = "com.instagram.clips.viewer.ClipsViewerActivity",
+            resourceIds = explicitReelsScreen().resourceIds + "main_feed_action_bar"
+        )
+
+        assertFalse(engine.shouldBlock(settingsAtLimit(), screen, nowMillis = 1_000L))
+    }
+
+    @Test
     fun doesNotBlockSingleGenericClipsNavigationResourceId() {
         val screen = ScreenSnapshot(
             packageName = "com.instagram.android",

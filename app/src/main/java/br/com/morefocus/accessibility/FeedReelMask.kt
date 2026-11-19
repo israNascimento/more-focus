@@ -6,12 +6,22 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.os.Build
+import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
+import br.com.morefocus.R
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 
 internal class FeedReelMask(context: Context, private val windowManager: WindowManager) {
+    private var tabBounds: Rect? = null
+    private val tabBlocker = View(context).apply {
+        setBackgroundColor(Color.argb(104, 128, 128, 128))
+        contentDescription = context.getString(R.string.reels_tab_blocked)
+        isClickable = true
+        isEnabled = false
+    }
     private var areas: List<Rect> = emptyList()
     private val paint = Paint().apply { color = Color.BLACK }
     private val origin = IntArray(2)
@@ -26,10 +36,18 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
     }.apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
 
     fun update(root: AccessibilityNodeInfo?) {
-        val next = if (root?.packageName == INSTAGRAM_PACKAGE_NAME) reelAreas(root) else emptyList()
+        if (root?.packageName != INSTAGRAM_PACKAGE_NAME) {
+            clear()
+            return
+        }
+        val tab = root.nodes("clips_tab").firstOrNull {
+            it.isVisibleToUser && it.isClickable
+        }
+        updateTabBlocker(tab?.bounds()?.takeUnless { it.isEmpty })
+        val next = reelAreas(root)
         if (next == areas) return
         if (next.isEmpty()) {
-            clear()
+            clearMedia()
             return
         }
         val needsWindow = areas.isEmpty()
@@ -48,6 +66,39 @@ internal class FeedReelMask(context: Context, private val windowManager: WindowM
     }
 
     fun clear() {
+        updateTabBlocker(null)
+        clearMedia()
+    }
+
+    private fun updateTabBlocker(bounds: Rect?) {
+        if (bounds == tabBounds) return
+        val wasVisible = tabBounds != null
+        tabBounds = bounds
+        if (bounds == null) {
+            windowManager.removeViewImmediate(tabBlocker)
+            return
+        }
+        val params = WindowManager.LayoutParams(
+            bounds.width(), bounds.height(),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            title = "MoreFocus Reels Tab"
+            gravity = Gravity.TOP or Gravity.LEFT
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                setFitInsetsTypes(0)
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+            x = bounds.left
+            y = bounds.top
+        }
+        if (wasVisible) windowManager.updateViewLayout(tabBlocker, params)
+        else windowManager.addView(tabBlocker, params)
+    }
+
+    private fun clearMedia() {
         if (areas.isEmpty()) return
         areas = emptyList()
         windowManager.removeViewImmediate(view)
