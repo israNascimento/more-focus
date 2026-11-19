@@ -3,19 +3,29 @@ package br.com.morefocus.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.assertCountEquals
+import android.content.Context
+import android.text.format.DateFormat
+import android.view.View
+import android.widget.DatePicker
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import br.com.morefocus.MoreFocusScreen
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.DailyUsageClock
@@ -24,6 +34,7 @@ import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.SelectableApp
 import br.com.morefocus.ui.theme.MoreFocusTheme
+import java.util.Calendar
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -48,23 +59,60 @@ class MoreFocusLayoutTest {
     private var editedLimit: Pair<String, Int>? = null
 
     @Test
-    fun weeklySummaryShowsRecordedMinutesGrantsAndMissingDays() {
+    fun daySelectorUpdatesTheTotalAppBreakdownAndExtensions() {
         val now = System.currentTimeMillis()
         val clock = DailyUsageClock()
-        state = state.copy(weeklyVideoUsage = (0..6).map { offset ->
+        val dateFormat = DateFormat.getLongDateFormat(ApplicationProvider.getApplicationContext<Context>())
+        fun select(offset: Int) = compose.onNodeWithContentDescription(dateFormat.format(clock.dayStartDaysAgo(now, offset)))
+            .performScrollTo().performClick().assertIsSelected()
+        state = state.copy(videoUsageHistory = (0..90).map { offset ->
             val used = when (offset) {
                 0 -> 420_000L
-                1 -> 0L
+                1 -> 30_000L
+                2 -> 0L
+                90 -> 33_000L
                 else -> null
             }
-            VideoUsageDay(clock.daysBefore(now, offset), used, if (offset == 0) 8 else 0)
+            val apps = when (offset) {
+                0 -> mapOf(INSTAGRAM_PACKAGE_NAME to 302_000L, YOUTUBE_PACKAGE_NAME to 118_000L)
+                90 -> mapOf(YOUTUBE_PACKAGE_NAME to 33_000L)
+                else -> emptyMap()
+            }
+            VideoUsageDay(clock.dayStartDaysAgo(now, offset), used, if (offset == 0) 8 else 0, apps)
         })
         launch()
-        compose.onNodeWithText("Últimos 7 dias").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Geral").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("7 min").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("8").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("0 min").performScrollTo().assertIsDisplayed()
-        compose.onAllNodesWithText("Sem registro").assertCountEquals(5)
+        compose.onNodeWithText("8 extensões de +1 minuto").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("Instagram") and hasText("5 min 2s")).performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("YouTube") and hasText("1 min 58s")).performScrollTo().assertIsDisplayed()
+        select(1)
+        compose.onNodeWithText("30s registrados antes do detalhamento por app.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("5 min 2s").assertDoesNotExist()
+        select(2)
+        compose.onNode(hasText("TikTok") and hasText("0s")).performScrollTo().assertIsDisplayed()
+        select(6)
+        compose.onNodeWithText("Sem registro").performScrollTo().assertIsDisplayed()
+        fun pickDate(offset: Int) {
+            compose.onNodeWithText("Calendário").performScrollTo().performClick()
+            onView(isAssignableFrom(DatePicker::class.java)).perform(object : ViewAction {
+                override fun getConstraints() = isAssignableFrom(DatePicker::class.java)
+                override fun getDescription() = "Selecionar um dia do histórico"
+                override fun perform(uiController: UiController, view: View) {
+                    val picker = view as DatePicker
+                    assertEquals(clock.dayKey(clock.dayStartDaysAgo(now, 90)), clock.dayKey(picker.minDate))
+                    assertEquals(clock.dayKey(now), clock.dayKey(picker.maxDate))
+                    val date = Calendar.getInstance().apply { timeInMillis = clock.dayStartDaysAgo(now, offset) }
+                    picker.updateDate(date.get(Calendar.YEAR), date.get(Calendar.MONTH), date.get(Calendar.DAY_OF_MONTH))
+                }
+            })
+            onView(withId(android.R.id.button1)).perform(click())
+            compose.onNodeWithContentDescription(dateFormat.format(clock.dayStartDaysAgo(now, offset))).assertIsSelected()
+        }
+        pickDate(90)
+        compose.onNode(hasText("YouTube") and hasText("33s")).performScrollTo().assertIsDisplayed()
+        pickDate(0)
+        compose.onNodeWithText("7 min").performScrollTo().assertIsDisplayed()
     }
 
     @Test

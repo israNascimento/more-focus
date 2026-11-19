@@ -34,11 +34,11 @@ Hoje, **Sair** já aciona o comando Voltar do Android. A melhoria é deixar clar
 - [ ] Verificar o percurso de quem abre um Reel a partir de uma conversa e quer voltar a ela sem conceder **+1 minuto**.
 - [ ] Testar também um vídeo aberto por link externo. Quando o destino for incerto, usar o rótulo **Voltar**.
 
-## 5. Consultar um resumo semanal no aparelho
+## 5. Consultar o histórico de vídeos curtos no aparelho
 
 Quem consulta o resumo pode descobrir em quais dias assistiu a mais vídeos curtos e com que frequência pediu mais um minuto.
 
-- [x] Na aba Uso, mostrar os minutos de vídeos curtos e a quantidade de extensões **+1 minuto** concedidas em cada um dos últimos sete dias.
+- [x] Na aba Uso, permitir escolher hoje ou qualquer data até 90 dias atrás e consultar o total de vídeos curtos, o tempo por aplicativo e as extensões **+1 minuto** concedidas naquele dia.
 - [x] Guardar os totais diários localmente. Cada extensão concedida conta uma vez, inclusive depois que a espera exponencial atinge o máximo.
 - [x] Distinguir um dia registrado com zero uso de um dia anterior ao início do histórico.
 

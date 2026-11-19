@@ -598,11 +598,13 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     private fun recordActiveVerticalVideosUsage(nowMillis: Long) {
+        val packageName = verticalVideosSessionPackageName ?: return
         val startedAtMillis = verticalVideosSessionStartedAtMillis ?: return
         if (nowMillis <= startedAtMillis) return
         settingsRepository.recordDailyVerticalVideosUsage(
             startedAtMillis = startedAtMillis,
-            endedAtMillis = nowMillis
+            endedAtMillis = nowMillis,
+            packageName = packageName
         )
         verticalVideosSessionStartedAtMillis = nowMillis
     }

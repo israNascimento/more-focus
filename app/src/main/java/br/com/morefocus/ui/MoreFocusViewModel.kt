@@ -32,7 +32,7 @@ data class MoreFocusUiState(
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
     val appLimitSecondOptions: List<Int> = emptyList(),
-    val weeklyVideoUsage: List<VideoUsageDay> = emptyList(),
+    val videoUsageHistory: List<VideoUsageDay> = emptyList(),
     val focusSchedule: FocusSchedule = FocusSchedule(),
     val focusSessionEndsAtMillis: Long = 0L
 ) {
@@ -52,7 +52,7 @@ class MoreFocusViewModel(
     fun observeVisibleUsage(): () -> Unit = settingsRepository.observeDailyVideoUsage {
         _uiState.value = _uiState.value.copy(
             dailyVerticalVideosUsageMillis = settingsRepository.getBlockSettings().dailyVerticalVideosUsageMillis,
-            weeklyVideoUsage = settingsRepository.weeklyVideoUsage()
+            videoUsageHistory = settingsRepository.videoUsageHistory()
         )
     }
 
@@ -167,7 +167,7 @@ class MoreFocusViewModel(
         return MoreFocusUiState(
             focusSessionEndsAtMillis = blockSettings.focusSessionEndsAtMillis
                 .takeIf { it > System.currentTimeMillis() } ?: 0L,
-            weeklyVideoUsage = settingsRepository.weeklyVideoUsage(),
+            videoUsageHistory = settingsRepository.videoUsageHistory(),
             focusSchedule = settings.focusSchedule,
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,

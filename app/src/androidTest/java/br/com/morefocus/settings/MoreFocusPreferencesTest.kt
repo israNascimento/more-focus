@@ -2,6 +2,7 @@ package br.com.morefocus.settings
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.KWAI_PACKAGE_NAME
@@ -38,23 +39,87 @@ class MoreFocusPreferencesTest {
     fun weeklyHistoryKeepsBothSidesOfMidnightAndDistinguishesUnrecordedDays() {
         val day1 = millis(2026, 11, 16, 12)
         val midnight = millis(2026, 11, 17, 0)
-        assertEquals(0L, preferences.weeklyVideoUsage(day1).first().usedMillis)
+        assertEquals(0L, preferences.videoUsageHistory(day1).first().usedMillis)
         preferences.recordDailyVerticalVideosUsage(midnight - 120_000L, midnight + 60_000L)
         val now = millis(2026, 11, 18, 9)
-        val result = MoreFocusPreferences(context).weeklyVideoUsage(now)
-        assertEquals(7, result.size)
-        assertEquals(listOf(0L, 60_000L, 120_000L, null, null, null, null), result.map { it.usedMillis })
-        val nextWeek = preferences.weeklyVideoUsage(millis(2026, 11, 25, 9))
-        assertTrue(nextWeek.all { it.usedMillis == 0L && it.extensions == 0 })
+        val result = MoreFocusPreferences(context).videoUsageHistory(now)
+        assertEquals(91, result.size)
+        assertEquals(listOf(0L, 60_000L, 120_000L), result.take(3).map { it.usedMillis })
+        assertTrue(result.drop(3).all { it.usedMillis == null })
+        val nextWeek = preferences.videoUsageHistory(millis(2026, 11, 25, 9))
+        assertEquals(120_000L, nextWeek[9].usedMillis)
+        assertEquals(60_000L, nextWeek[8].usedMillis)
     }
 
     @Test
     fun firstUsageFlushCanReachTheDayBeforeHistoryWasOpened() {
         val midnight = millis(2026, 11, 17, 0)
-        preferences.weeklyVideoUsage(midnight)
+        preferences.videoUsageHistory(midnight)
         preferences.recordDailyVerticalVideosUsage(midnight - 10_000L, midnight + 20_000L)
-        val days = preferences.weeklyVideoUsage(midnight + 20_000L)
+        val days = preferences.videoUsageHistory(midnight + 20_000L)
         assertEquals(listOf(20_000L, 10_000L, null), days.take(3).map { it.usedMillis })
+    }
+
+    @Test
+    fun videoBreakdownSplitsAtMidnightAndCountsOnlyVisibleFeedTimeForEachPackage() {
+        val midnight = millis(2026, 11, 17, 0)
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        repository.recordDailyVerticalVideosUsage(midnight - 12_000L, midnight + 4_000L, INSTAGRAM_PACKAGE_NAME)
+        repository.recordDailyVerticalVideosUsage(midnight + 4_000L, midnight + 11_000L, KWAI_PACKAGE_NAME)
+        preferences.startFocusSession(midnight + 12_000L)
+        repository.recordDailyVerticalVideosUsage(midnight + 11_000L, midnight + 16_000L, INSTAGRAM_PACKAGE_NAME)
+        preferences.recordDailyAppUsage(INSTAGRAM_PACKAGE_NAME, midnight, midnight + 50_000L)
+
+        val days = MoreFocusPreferences(context).videoUsageHistory(midnight + 50_000L)
+        assertEquals(mapOf(INSTAGRAM_PACKAGE_NAME to 5_000L, KWAI_PACKAGE_NAME to 7_000L), days[0].videoMillisByPackage)
+        assertEquals(mapOf(INSTAGRAM_PACKAGE_NAME to 12_000L), days[1].videoMillisByPackage)
+        assertEquals(days[0].usedMillis, days[0].videoMillisByPackage.values.sum())
+        assertEquals(days[1].usedMillis, days[1].videoMillisByPackage.values.sum())
+        val afterRetention = preferences.videoUsageHistory(millis(2027, 2, 17, 12))
+        assertTrue(afterRetention.all { it.videoMillisByPackage.isEmpty() })
+        assertTrue(context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).all.keys
+            .none { it.startsWith("weekly_app_video_ms_") })
+    }
+
+    @Test
+    fun oldestSelectableDayKeepsUsageAppsAndGrantsUntilTheNextLocalDay() {
+        val clock = DailyUsageClock()
+        val now = millis(2028, 3, 13, 12)
+        val oldest = clock.dayStartDaysAgo(now, 90)
+        preferences.recordDailyVerticalVideosUsage(oldest - 2_000, oldest + 8_000, KWAI_PACKAGE_NAME)
+        preferences.pauseFor(60_000, PauseExtensionTarget.VerticalVideos, oldest - 1)
+        preferences.pauseFor(60_000, PauseExtensionTarget.VerticalVideos, oldest + 8_000)
+
+        val history = MoreFocusPreferences(context).videoUsageHistory(now)
+        assertEquals(91, history.size)
+        val boundary = history.last()
+        assertEquals(oldest, boundary.dateMillis)
+        assertEquals(8_000L, boundary.usedMillis)
+        assertEquals(mapOf(KWAI_PACKAGE_NAME to 8_000L), boundary.videoMillisByPackage)
+        assertEquals(1, boundary.extensions)
+        val prefs = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        assertTrue(prefs.all.keys.none { it.endsWith(clock.dayKey(oldest - 1)) })
+        val tomorrow = preferences.videoUsageHistory(millis(2028, 3, 14, 12))
+        assertTrue(tomorrow.all { it.usedMillis == 0L && it.extensions == 0 && it.videoMillisByPackage.isEmpty() })
+        assertTrue(prefs.all.keys.none { it.endsWith(clock.dayKey(oldest)) })
+    }
+
+    @Test
+    fun upgradingWeeklyRetentionPreservesSurvivingDaysAndMarksPrunedDaysUnknown() {
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).edit()
+            .putString("weekly_first_day", "2026-08-01")
+            .putString("weekly_last_day", "2026-11-12")
+            .putLong("weekly_video_ms_2026-11-06", 12_000L)
+            .putLong("weekly_app_video_ms_${KWAI_PACKAGE_NAME}_2026-11-06", 12_000L)
+            .putInt("weekly_extensions_2026-11-06", 1).commit()
+        val now = millis(2026, 11, 19, 12)
+        val history = preferences.videoUsageHistory(now)
+        assertEquals(12_000L, history[13].usedMillis)
+        assertEquals(1, history[13].extensions)
+        assertEquals(12_000L, history[13].videoMillisByPackage[KWAI_PACKAGE_NAME])
+        assertEquals(0L, history[12].usedMillis)
+        assertTrue(history.drop(14).all { it.usedMillis == null })
+        assertEquals(history, MoreFocusPreferences(context).videoUsageHistory(now))
     }
 
     @Test
@@ -67,7 +132,7 @@ class MoreFocusPreferencesTest {
         preferences.pauseFor(60_000L, PauseExtensionTarget.App(YOUTUBE_PACKAGE_NAME), today + 900_000L)
         val tomorrow = millis(2026, 11, 18, 12)
         preferences.pauseFor(60_000L, video, tomorrow)
-        val result = MoreFocusPreferences(context).weeklyVideoUsage(tomorrow)
+        val result = MoreFocusPreferences(context).videoUsageHistory(tomorrow)
         assertEquals(listOf(1, 8), result.take(2).map { it.extensions })
         assertTrue(result.take(2).all { it.usedMillis == 0L })
     }
@@ -78,10 +143,11 @@ class MoreFocusPreferencesTest {
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).edit()
             .putString("daily_vertical_videos_usage_day", "2026-11-17")
             .putLong("daily_vertical_videos_usage_millis", 90_000L).commit()
-        assertEquals(90_000L, preferences.weeklyVideoUsage(now).first().usedMillis)
-        preferences.recordDailyVerticalVideosUsage(now, now + 10_000L)
-        val today = MoreFocusPreferences(context).weeklyVideoUsage(now + 10_000L).first()
+        assertEquals(90_000L, preferences.videoUsageHistory(now).first().usedMillis)
+        preferences.recordDailyVerticalVideosUsage(now, now + 10_000L, TIKTOK_PACKAGE_NAME)
+        val today = MoreFocusPreferences(context).videoUsageHistory(now + 10_000L).first()
         assertEquals(100_000L, today.usedMillis)
+        assertEquals(mapOf(TIKTOK_PACKAGE_NAME to 10_000L), today.videoMillisByPackage)
         assertEquals(0, today.extensions)
     }
 
@@ -97,7 +163,7 @@ class MoreFocusPreferencesTest {
         assertTrue(reopened.getBlockSettings(end).forcesVideoExit(end))
         val used = reopened.recordDailyVerticalVideosUsage(friday - 4_000L, end + 25 * 60_000L + 2_000L)
         assertEquals(6_000L, used.usedMillis)
-        assertEquals(used.usedMillis, reopened.weeklyVideoUsage(end + 25 * 60_000L + 2_000L).first().usedMillis)
+        assertEquals(used.usedMillis, reopened.videoUsageHistory(end + 25 * 60_000L + 2_000L).first().usedMillis)
         reopened.setFocusSchedule(schedule.copy(enabled = false))
         val nextFriday = millis(2026, 11, 27, 10)
         assertFalse(reopened.getBlockSettings(nextFriday).forcesVideoExit(nextFriday))

@@ -9,13 +9,19 @@
     <string name="open_accessibility_settings">Abrir configurações</string>
     <string name="usage_tab_title">Uso</string>
     <string name="preferences_tab_title">Preferências</string>
-    <string name="weekly_title">Últimos 7 dias</string>
-    <string name="weekly_description">Tempo em vídeos curtos e extensões de +1 minuto concedidas para vídeos ou aplicativos.</string>
-    <string name="weekly_day">Dia</string>
     <string name="weekly_videos">Vídeos curtos</string>
-    <string name="weekly_grants">Extensões</string>
-    <string name="weekly_less_than_minute">&lt; 1 min</string>
     <string name="weekly_unrecorded">Sem registro</string>
+    <string name="history_today">Hoje</string>
+    <string name="history_calendar">Calendário</string>
+    <string name="history_minutes_seconds">%1$d min %2$ds</string>
+    <string name="history_under_second">&lt; 1s</string>
+    <string name="history_before_breakdown">%1$s registrados antes do detalhamento por app.</string>
+    <string name="history_no_breakdown">Sem detalhamento</string>
+    <string name="history_no_extensions">Nenhuma extensão de +1 minuto</string>
+    <plurals name="history_extensions">
+        <item quantity="one">%1$d extensão de +1 minuto</item>
+        <item quantity="other">%1$d extensões de +1 minuto</item>
+    </plurals>
     <string name="usage_today_title">Uso de hoje</string>
     <string name="focus_schedule">Horário de foco</string>
     <string name="schedule_enabled">Ativar agendamento</string>
@@ -32,7 +38,7 @@
     <string name="focus_session_description">Bloqueia os feeds de vídeos curtos que você ativou nas Preferências e guarda seu saldo diário para depois.</string>
     <string name="focus_session_enable_focus">Ative o MoreFocus nas Preferências para usar a sessão de foco.</string>
     <string name="focus_session_enable_rules">Ative uma regra de vídeos curtos nas Preferências para usar a sessão de foco.</string>
-    <string name="usage_apps_description">Tempo de uso dos apps com limite diário.</string>
+    <string name="usage_apps_description">Tempo de uso de hoje nos apps com limite diário.</string>
     <string name="usage_vertical_videos_title">Reels do Instagram e do Facebook, Shorts, X, TikTok e Kwai</string>
     <string name="usage_notification_channel">Uso diário de vídeos verticais</string>
     <string name="usage_notification_remaining">%1$s disponíveis hoje</string>

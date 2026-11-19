@@ -19,7 +19,7 @@ class MoreFocusPreferences(context: Context) {
         Context.MODE_PRIVATE
     )
     private val dailyUsageClock = DailyUsageClock()
-    private val videoHistory = WeeklyVideoHistory(preferences, dailyUsageClock)
+    private val videoHistory = VideoUsageHistoryStore(preferences, dailyUsageClock)
 
     fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -325,7 +325,7 @@ class MoreFocusPreferences(context: Context) {
     fun pauseUntilMillis(): Long =
         preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L)
 
-    fun weeklyVideoUsage(nowMillis: Long = System.currentTimeMillis()): List<VideoUsageDay> = synchronized(preferences) {
+    fun videoUsageHistory(nowMillis: Long = System.currentTimeMillis()): List<VideoUsageDay> = synchronized(preferences) {
         videoHistory.prepare(nowMillis, storedDailyUsageState())
         videoHistory.read(nowMillis)
     }
@@ -342,7 +342,8 @@ class MoreFocusPreferences(context: Context) {
 
     fun recordDailyVerticalVideosUsage(
         startedAtMillis: Long?,
-        endedAtMillis: Long
+        endedAtMillis: Long,
+        packageName: String? = null
     ): DailyUsageState = synchronized(preferences) {
         val sessionEnd = focusSessionEndsAtMillis()
         val sessionStart = sessionEnd - FOCUS_SESSION_DURATION_MILLIS
@@ -375,7 +376,7 @@ class MoreFocusPreferences(context: Context) {
         val updatedState = dailyUsageClock.stateFor(usage, endedAtMillis)
         preferences.edit {
             putDailyUsageState(updatedState)
-            videoHistory.addUsage(this, dailyDeltas, endedAtMillis)
+            videoHistory.addUsage(this, dailyDeltas, endedAtMillis, packageName)
         }
         updatedState
     }

@@ -36,7 +36,7 @@ interface MoreFocusSettingsRepository {
 
     fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit
 
-    fun weeklyVideoUsage(): List<VideoUsageDay>
+    fun videoUsageHistory(): List<VideoUsageDay>
 
     fun getBlockSettings(nowMillis: Long = System.currentTimeMillis()): BlockSettings
 
@@ -121,7 +121,8 @@ interface MoreFocusSettingsRepository {
 
     fun recordDailyVerticalVideosUsage(
         startedAtMillis: Long?,
-        endedAtMillis: Long
+        endedAtMillis: Long,
+        packageName: String? = null
     ): DailyUsageState
 
     fun recordDailyAppUsage(
@@ -145,7 +146,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun observeDailyVideoUsage(onChanged: () -> Unit) = preferences.observeDailyVideoUsage(onChanged)
 
-    override fun weeklyVideoUsage() = preferences.weeklyVideoUsage()
+    override fun videoUsageHistory() = preferences.videoUsageHistory()
 
     override fun getSettings(): MoreFocusSettings =
         MoreFocusSettings(
@@ -274,9 +275,10 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun recordDailyVerticalVideosUsage(
         startedAtMillis: Long?,
-        endedAtMillis: Long
+        endedAtMillis: Long,
+        packageName: String?
     ): DailyUsageState =
-        preferences.recordDailyVerticalVideosUsage(startedAtMillis, endedAtMillis)
+        preferences.recordDailyVerticalVideosUsage(startedAtMillis, endedAtMillis, packageName)
 
     override fun recordDailyAppUsage(
         packageName: String,

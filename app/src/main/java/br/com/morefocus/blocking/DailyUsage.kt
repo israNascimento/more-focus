@@ -1,5 +1,6 @@
 package br.com.morefocus.blocking
 
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -11,7 +12,12 @@ data class DailyUsageState(
     val usedMillis: Long
 )
 
-data class VideoUsageDay(val dateMillis: Long, val usedMillis: Long?, val extensions: Int)
+data class VideoUsageDay(
+    val dateMillis: Long,
+    val usedMillis: Long?,
+    val extensions: Int,
+    val videoMillisByPackage: Map<String, Long> = emptyMap()
+)
 
 class DailyUsageClock(
     private val timeZone: TimeZone? = null
@@ -27,8 +33,16 @@ class DailyUsageClock(
         )
     }
 
-    fun daysBefore(nowMillis: Long, days: Int): Long = calendarAt(nowMillis).apply {
+    fun parseDayKey(key: String): Long = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        timeZone = this@DailyUsageClock.timeZone ?: TimeZone.getDefault()
+    }.parse(key)!!.time
+
+    fun dayStartDaysAgo(nowMillis: Long, days: Int): Long = calendarAt(nowMillis).apply {
         add(Calendar.DAY_OF_MONTH, -days)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
     fun stateFor(state: DailyUsageState, nowMillis: Long): DailyUsageState {
@@ -75,14 +89,7 @@ class DailyUsageClock(
     fun millisUntilNextDay(nowMillis: Long): Long =
         max(0L, nextDayStartMillis(nowMillis) - nowMillis)
 
-    private fun nextDayStartMillis(nowMillis: Long): Long =
-        calendarAt(nowMillis).apply {
-            add(Calendar.DAY_OF_YEAR, 1)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
+    private fun nextDayStartMillis(nowMillis: Long): Long = dayStartDaysAgo(nowMillis, -1)
 
     private fun calendarAt(nowMillis: Long): Calendar =
         Calendar.getInstance(timeZone ?: TimeZone.getDefault()).apply {

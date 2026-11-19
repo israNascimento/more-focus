@@ -217,7 +217,7 @@ class MoreFocusViewModelTest {
 
         override fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit = {}
 
-        override fun weeklyVideoUsage() = emptyList<br.com.morefocus.blocking.VideoUsageDay>()
+        override fun videoUsageHistory() = emptyList<br.com.morefocus.blocking.VideoUsageDay>()
 
         override fun getSettings(): MoreFocusSettings = settings
 
@@ -361,7 +361,8 @@ class MoreFocusViewModelTest {
 
         override fun recordDailyVerticalVideosUsage(
             startedAtMillis: Long?,
-            endedAtMillis: Long
+            endedAtMillis: Long,
+            packageName: String?
         ): DailyUsageState =
             DailyUsageState(dayKey = "2026-07-08", usedMillis = 0L)
 
