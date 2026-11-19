@@ -59,6 +59,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.data.SelectableApp
@@ -101,11 +102,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var stopObservingUsage: (() -> Unit)? = null
+
     override fun onResume() {
         super.onResume()
+        stopObservingUsage = viewModel.observeVisibleUsage()
         viewModel.refresh()
         val state = viewModel.uiState.value
         if (state.serviceEnabled && state.showUsageNotification) requestNotificationPermission()
+    }
+
+    override fun onPause() {
+        stopObservingUsage?.invoke()
+        stopObservingUsage = null
+        super.onPause()
     }
 
     private fun requestNotificationPermission(userInitiated: Boolean = false) {
@@ -141,9 +151,15 @@ private fun MoreFocusApp(
     val sessionEnd = uiState.focusSessionEndsAtMillis
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(sessionEnd, lifecycle) {
-        if (sessionEnd > 0L) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            delay(sessionEnd - System.currentTimeMillis())
-            viewModel.refresh()
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            val clock = DailyUsageClock()
+            while (true) {
+                val now = System.currentTimeMillis()
+                val untilMidnight = clock.millisUntilNextDay(now)
+                val untilRefresh = if (sessionEnd > now) minOf(sessionEnd - now, untilMidnight) else untilMidnight
+                delay(untilRefresh)
+                viewModel.refresh()
+            }
         }
     }
 

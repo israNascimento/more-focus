@@ -10,6 +10,7 @@ import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.DailyUsageState
 import br.com.morefocus.blocking.ExponentialPauseLockPolicy
 import br.com.morefocus.blocking.MonitoringScope
+import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.blocking.PauseExtensionTarget
 
 class MoreFocusPreferences(context: Context) {
@@ -18,11 +19,13 @@ class MoreFocusPreferences(context: Context) {
         Context.MODE_PRIVATE
     )
     private val dailyUsageClock = DailyUsageClock()
+    private val videoHistory = WeeklyVideoHistory(preferences, dailyUsageClock)
 
     fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             when (key) {
                 KEY_SHOW_USAGE_NOTIFICATION,
+                KEY_PAUSE_UNTIL_MILLIS,
                 KEY_FOCUS_ENABLED,
                 KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED,
                 KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED,
@@ -300,7 +303,8 @@ class MoreFocusPreferences(context: Context) {
         durationMillis: Long,
         target: PauseExtensionTarget,
         nowMillis: Long = System.currentTimeMillis()
-    ) {
+    ) = synchronized(preferences) {
+        videoHistory.prepare(nowMillis, storedDailyUsageState())
         val shouldIncrementExtensionCount = isExponentialPauseLockEnabled()
         val nextExtensionCount = if (shouldIncrementExtensionCount) {
             ExponentialPauseLockPolicy.increment(pauseExtensionCount(target, nowMillis))
@@ -310,6 +314,7 @@ class MoreFocusPreferences(context: Context) {
 
         preferences.edit {
             putLong(KEY_PAUSE_UNTIL_MILLIS, nowMillis + durationMillis)
+            if (durationMillis == 60_000L) videoHistory.addExtension(this, nowMillis)
             if (shouldIncrementExtensionCount) {
                 putString(pauseExtensionDayKey(target), dailyUsageClock.dayKey(nowMillis))
                 putInt(pauseExtensionCountKey(target), nextExtensionCount)
@@ -320,29 +325,41 @@ class MoreFocusPreferences(context: Context) {
     fun pauseUntilMillis(): Long =
         preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L)
 
+    fun weeklyVideoUsage(nowMillis: Long = System.currentTimeMillis()): List<VideoUsageDay> = synchronized(preferences) {
+        videoHistory.prepare(nowMillis, storedDailyUsageState())
+        videoHistory.read(nowMillis)
+    }
+
     fun getDailyVerticalVideosUsageState(
         nowMillis: Long = System.currentTimeMillis()
-    ): DailyUsageState {
+    ): DailyUsageState = synchronized(preferences) {
         val storedState = storedDailyUsageState()
+        videoHistory.prepare(nowMillis, storedState)
         val currentState = dailyUsageClock.stateFor(storedState, nowMillis)
-        if (currentState != storedState) saveDailyUsageState(currentState)
-        return currentState
+        if (currentState != storedState) preferences.edit { putDailyUsageState(currentState) }
+        currentState
     }
 
     fun recordDailyVerticalVideosUsage(
         startedAtMillis: Long?,
         endedAtMillis: Long
-    ): DailyUsageState {
+    ): DailyUsageState = synchronized(preferences) {
         val sessionEnd = focusSessionEndsAtMillis()
         val sessionStart = sessionEnd - FOCUS_SESSION_DURATION_MILLIS
         var usage = storedDailyUsageState()
+        videoHistory.prepare(endedAtMillis, usage, startedAtMillis ?: endedAtMillis)
+        val dailyDeltas = mutableMapOf<String, Long>()
         val schedule = focusSchedule()
         fun recordUnscheduled(from: Long, until: Long) {
             var cursor = from
             while (cursor < until) {
                 val period = schedule.currentOrNext(cursor)
                 val visibleEnd = minOf(until, period?.start ?: until)
-                if (cursor < visibleEnd) usage = dailyUsageClock.addVisibleTime(usage, cursor, visibleEnd)
+                if (cursor < visibleEnd) {
+                    usage = dailyUsageClock.addVisibleTime(usage, cursor, visibleEnd) { day, duration ->
+                        dailyDeltas[day] = (dailyDeltas[day] ?: 0L) + duration
+                    }
+                }
                 cursor = period?.end ?: until
             }
         }
@@ -356,8 +373,11 @@ class MoreFocusPreferences(context: Context) {
         }
         if (visibleFrom != null) recordUnscheduled(visibleFrom, endedAtMillis)
         val updatedState = dailyUsageClock.stateFor(usage, endedAtMillis)
-        saveDailyUsageState(updatedState)
-        return updatedState
+        preferences.edit {
+            putDailyUsageState(updatedState)
+            videoHistory.addUsage(this, dailyDeltas, endedAtMillis)
+        }
+        updatedState
     }
 
     fun getDailyAppUsageState(
@@ -399,11 +419,9 @@ class MoreFocusPreferences(context: Context) {
             )
         )
 
-    private fun saveDailyUsageState(state: DailyUsageState) {
-        preferences.edit {
-            putString(KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY, state.dayKey)
-            putLong(KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS, state.usedMillis)
-        }
+    private fun SharedPreferences.Editor.putDailyUsageState(state: DailyUsageState) {
+        putString(KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY, state.dayKey)
+        putLong(KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS, state.usedMillis)
     }
 
     private fun appLimitPackages(): Set<String> =

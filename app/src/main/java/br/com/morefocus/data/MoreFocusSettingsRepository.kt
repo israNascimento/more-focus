@@ -3,6 +3,7 @@ package br.com.morefocus.data
 import br.com.morefocus.blocking.FocusSchedule
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
+import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.blocking.DailyUsageState
 import br.com.morefocus.blocking.MonitoringScope
 import br.com.morefocus.blocking.PauseExtensionTarget
@@ -32,6 +33,10 @@ interface MoreFocusSettingsRepository {
     val appLimitSecondOptions: List<Int>
 
     fun getSettings(): MoreFocusSettings
+
+    fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit
+
+    fun weeklyVideoUsage(): List<VideoUsageDay>
 
     fun getBlockSettings(nowMillis: Long = System.currentTimeMillis()): BlockSettings
 
@@ -137,6 +142,10 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override val appLimitSecondOptions: List<Int> =
         MoreFocusPreferences.DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
+
+    override fun observeDailyVideoUsage(onChanged: () -> Unit) = preferences.observeDailyVideoUsage(onChanged)
+
+    override fun weeklyVideoUsage() = preferences.weeklyVideoUsage()
 
     override fun getSettings(): MoreFocusSettings =
         MoreFocusSettings(

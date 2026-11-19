@@ -1,5 +1,6 @@
 package br.com.morefocus
 
+import android.text.format.DateUtils
 import android.text.format.DateFormat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.morefocus.blocking.AppLimitRule
+import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.ui.MoreFocusUiState
 import java.util.Date
 
@@ -75,6 +77,41 @@ internal fun UsageScreen(
             uiState.appLimitRules.forEach { rule ->
                 AppUsageRow(rule)
                 HorizontalDivider()
+            }
+        }
+        WeeklyUsageSummary(uiState.weeklyVideoUsage)
+    }
+}
+
+@Composable
+private fun WeeklyUsageSummary(days: List<VideoUsageDay>) {
+    val context = LocalContext.current
+    val dateFlags = DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_SHOW_DATE or
+        DateUtils.FORMAT_NUMERIC_DATE or DateUtils.FORMAT_ABBREV_WEEKDAY or DateUtils.FORMAT_NO_YEAR
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(R.string.weekly_title)
+        Text(stringResource(R.string.weekly_description), style = MaterialTheme.typography.bodyMedium)
+        Row(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.weekly_day), Modifier.weight(1.2f), style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.weekly_videos), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.weekly_grants), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+        }
+        days.forEach { day ->
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(DateUtils.formatDateTime(context, day.dateMillis, dateFlags), Modifier.weight(1.2f))
+                if (day.usedMillis == null) {
+                    Text(stringResource(R.string.weekly_unrecorded), Modifier.weight(2f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    val minutes = if (day.usedMillis in 1L until 60_000L) {
+                        stringResource(R.string.weekly_less_than_minute)
+                    } else {
+                        stringResource(R.string.duration_minutes, day.usedMillis / 60_000L)
+                    }
+                    Text(minutes, Modifier.weight(1f))
+                    Text(day.extensions.toString(), Modifier.weight(1f))
+                }
             }
         }
     }

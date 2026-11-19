@@ -215,6 +215,10 @@ class MoreFocusViewModelTest {
         override val appLimitSecondOptions: List<Int> =
             DAILY_VERTICAL_VIDEOS_LIMIT_SECOND_OPTIONS
 
+        override fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit = {}
+
+        override fun weeklyVideoUsage() = emptyList<br.com.morefocus.blocking.VideoUsageDay>()
+
         override fun getSettings(): MoreFocusSettings = settings
 
         private var focusSessionEnd = 0L

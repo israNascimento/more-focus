@@ -2,6 +2,7 @@ package br.com.morefocus.ui
 
 import androidx.lifecycle.ViewModel
 import br.com.morefocus.blocking.FocusSchedule
+import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.data.AccessibilityServiceRepository
 import br.com.morefocus.data.InstalledAppsRepository
@@ -31,6 +32,7 @@ data class MoreFocusUiState(
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
     val appLimitSecondOptions: List<Int> = emptyList(),
+    val weeklyVideoUsage: List<VideoUsageDay> = emptyList(),
     val focusSchedule: FocusSchedule = FocusSchedule(),
     val focusSessionEndsAtMillis: Long = 0L
 ) {
@@ -46,6 +48,13 @@ class MoreFocusViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(loadUiState())
     val uiState: StateFlow<MoreFocusUiState> = _uiState.asStateFlow()
+
+    fun observeVisibleUsage(): () -> Unit = settingsRepository.observeDailyVideoUsage {
+        _uiState.value = _uiState.value.copy(
+            dailyVerticalVideosUsageMillis = settingsRepository.getBlockSettings().dailyVerticalVideosUsageMillis,
+            weeklyVideoUsage = settingsRepository.weeklyVideoUsage()
+        )
+    }
 
     fun refresh() {
         _uiState.value = loadUiState()
@@ -158,6 +167,7 @@ class MoreFocusViewModel(
         return MoreFocusUiState(
             focusSessionEndsAtMillis = blockSettings.focusSessionEndsAtMillis
                 .takeIf { it > System.currentTimeMillis() } ?: 0L,
+            weeklyVideoUsage = settingsRepository.weeklyVideoUsage(),
             focusSchedule = settings.focusSchedule,
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,

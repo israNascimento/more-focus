@@ -11,6 +11,8 @@ data class DailyUsageState(
     val usedMillis: Long
 )
 
+data class VideoUsageDay(val dateMillis: Long, val usedMillis: Long?, val extensions: Int)
+
 class DailyUsageClock(
     private val timeZone: TimeZone? = null
 ) {
@@ -25,6 +27,10 @@ class DailyUsageClock(
         )
     }
 
+    fun daysBefore(nowMillis: Long, days: Int): Long = calendarAt(nowMillis).apply {
+        add(Calendar.DAY_OF_MONTH, -days)
+    }.timeInMillis
+
     fun stateFor(state: DailyUsageState, nowMillis: Long): DailyUsageState {
         val currentDayKey = dayKey(nowMillis)
         return if (state.dayKey == currentDayKey) {
@@ -37,7 +43,8 @@ class DailyUsageClock(
     fun addVisibleTime(
         state: DailyUsageState,
         startedAtMillis: Long?,
-        endedAtMillis: Long
+        endedAtMillis: Long,
+        onSegment: ((day: String, durationMillis: Long) -> Unit)? = null
     ): DailyUsageState {
         val startedAt = startedAtMillis ?: return stateFor(state, endedAtMillis)
         if (endedAtMillis <= startedAt) return stateFor(state, endedAtMillis)
@@ -58,6 +65,7 @@ class DailyUsageClock(
                 dayKey = segmentDayKey,
                 usedMillis = currentUsedMillis + max(0L, segmentEnd - segmentStart)
             )
+            onSegment?.invoke(segmentDayKey, segmentEnd - segmentStart)
             segmentStart = segmentEnd
         }
 

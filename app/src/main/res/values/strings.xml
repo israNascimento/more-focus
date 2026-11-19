@@ -9,6 +9,13 @@
     <string name="open_accessibility_settings">Abrir configurações</string>
     <string name="usage_tab_title">Uso</string>
     <string name="preferences_tab_title">Preferências</string>
+    <string name="weekly_title">Últimos 7 dias</string>
+    <string name="weekly_description">Tempo em vídeos curtos e extensões de +1 minuto concedidas para vídeos ou aplicativos.</string>
+    <string name="weekly_day">Dia</string>
+    <string name="weekly_videos">Vídeos curtos</string>
+    <string name="weekly_grants">Extensões</string>
+    <string name="weekly_less_than_minute">&lt; 1 min</string>
+    <string name="weekly_unrecorded">Sem registro</string>
     <string name="usage_today_title">Uso de hoje</string>
     <string name="focus_schedule">Horário de foco</string>
     <string name="schedule_enabled">Ativar agendamento</string>

@@ -3,6 +3,7 @@ package br.com.morefocus.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -10,13 +11,16 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import br.com.morefocus.MoreFocusScreen
 import br.com.morefocus.blocking.AppLimitRule
+import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.VideoUsageDay
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.SelectableApp
 import br.com.morefocus.ui.theme.MoreFocusTheme
@@ -42,6 +46,26 @@ class MoreFocusLayoutTest {
     private var settingsOpened = 0
     private var addedLimit: Pair<String, Int>? = null
     private var editedLimit: Pair<String, Int>? = null
+
+    @Test
+    fun weeklySummaryShowsRecordedMinutesGrantsAndMissingDays() {
+        val now = System.currentTimeMillis()
+        val clock = DailyUsageClock()
+        state = state.copy(weeklyVideoUsage = (0..6).map { offset ->
+            val used = when (offset) {
+                0 -> 420_000L
+                1 -> 0L
+                else -> null
+            }
+            VideoUsageDay(clock.daysBefore(now, offset), used, if (offset == 0) 8 else 0)
+        })
+        launch()
+        compose.onNodeWithText("Últimos 7 dias").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("7 min").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("8").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0 min").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("Sem registro").assertCountEquals(5)
+    }
 
     @Test
     fun scheduleCanBeEnabledEditedAndDisabled() {

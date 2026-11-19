@@ -38,9 +38,9 @@ Hoje, **Sair** já aciona o comando Voltar do Android. A melhoria é deixar clar
 
 Quem consulta o resumo pode descobrir em quais dias assistiu a mais vídeos curtos e com que frequência pediu mais um minuto.
 
-- [ ] Na aba Uso, mostrar os minutos de vídeos curtos e a quantidade de extensões **+1 minuto** concedidas em cada um dos últimos sete dias.
-- [ ] Guardar os totais diários localmente. Cada extensão concedida conta uma vez, inclusive depois que a espera exponencial atinge o máximo.
-- [ ] Distinguir um dia registrado com zero uso de um dia anterior ao início do histórico.
+- [x] Na aba Uso, mostrar os minutos de vídeos curtos e a quantidade de extensões **+1 minuto** concedidas em cada um dos últimos sete dias.
+- [x] Guardar os totais diários localmente. Cada extensão concedida conta uma vez, inclusive depois que a espera exponencial atinge o máximo.
+- [x] Distinguir um dia registrado com zero uso de um dia anterior ao início do histórico.
 
 ## 6. Incluir mais aplicativos no limite compartilhado
 
