@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,6 +68,8 @@ import br.com.morefocus.ui.MoreFocusUiState
 import br.com.morefocus.ui.MoreFocusViewModel
 import br.com.morefocus.ui.theme.MoreFocusTheme
 import kotlinx.coroutines.delay
+
+internal const val ONBOARDING_COMPLETED = "onboarding_completed"
 
 class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(
@@ -87,9 +90,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val preferences = getPreferences(MODE_PRIVATE)
 
         setContent {
             MoreFocusTheme(dynamicColor = false) {
+                var completed by remember { mutableStateOf(preferences.getBoolean(ONBOARDING_COMPLETED, false)) }
+                if (!completed) {
+                    OnboardingScreen(onFinish = {
+                        preferences.edit { putBoolean(ONBOARDING_COMPLETED, true) }
+                        completed = true
+                    })
+                    return@MoreFocusTheme
+                }
+                LifecycleResumeEffect(Unit) {
+                    val stopObservingUsage = viewModel.observeVisibleUsage()
+                    viewModel.refresh()
+                    val state = viewModel.uiState.value
+                    if (state.serviceEnabled && state.showUsageNotification) requestNotificationPermission()
+                    onPauseOrDispose { stopObservingUsage() }
+                }
                 MoreFocusApp(
                     viewModel = viewModel,
                     onShowUsageNotificationChange = { show ->
@@ -100,22 +119,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    private var stopObservingUsage: (() -> Unit)? = null
-
-    override fun onResume() {
-        super.onResume()
-        stopObservingUsage = viewModel.observeVisibleUsage()
-        viewModel.refresh()
-        val state = viewModel.uiState.value
-        if (state.serviceEnabled && state.showUsageNotification) requestNotificationPermission()
-    }
-
-    override fun onPause() {
-        stopObservingUsage?.invoke()
-        stopObservingUsage = null
-        super.onPause()
     }
 
     private fun requestNotificationPermission(userInitiated: Boolean = false) {

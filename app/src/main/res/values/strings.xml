@@ -3,6 +3,17 @@
     <string name="accessibility_service_label">More Focus</string>
     <string name="accessibility_service_description">Detecta o aplicativo em primeiro plano, Reels do Instagram e do Facebook, YouTube Shorts, vídeos em tela cheia do X, o feed Para Você do TikTok e o feed de vídeos do Kwai para aplicar limites diários locais. O MoreFocus não captura imagens, não grava vídeos e não envia dados.</string>
     <string name="wordmark">MoreFocus</string>
+    <string name="onboarding_limits_title">Escolha seu limite de vídeos</string>
+    <string name="onboarding_limits_body">Nas Preferências, escolha quais feeds limitar. Reels, Shorts e os outros feeds selecionados compartilham o mesmo tempo diário.</string>
+    <string name="onboarding_focus_title">Reserve meia hora de foco</string>
+    <string name="onboarding_focus_body">Precisa estudar ou trabalhar? Na aba Uso, inicie uma sessão de 30 minutos. Os feeds que você escolheu ficam bloqueados até a sessão terminar.</string>
+    <string name="onboarding_history_title">Acompanhe seu tempo</string>
+    <string name="onboarding_history_body">Na aba Uso, veja quanto tempo passou em vídeos curtos hoje. Escolha um dia no calendário para consultar o tempo por aplicativo.</string>
+    <string name="onboarding_progress">Etapa %1$d de %2$d</string>
+    <string name="onboarding_skip">Pular</string>
+    <string name="onboarding_back">Voltar</string>
+    <string name="onboarding_next">Próximo</string>
+    <string name="onboarding_start">Começar</string>
     <string name="accessibility_status_active">Acessibilidade ativa</string>
     <string name="accessibility_status_inactive">Acessibilidade desativada</string>
     <string name="accessibility_status_inactive_description">Ative o serviço MoreFocus nas configurações do Android.</string>
