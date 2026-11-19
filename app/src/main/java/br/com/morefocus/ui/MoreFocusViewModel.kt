@@ -29,8 +29,13 @@ data class MoreFocusUiState(
     val dailyVerticalVideosLimitSecondOptions: List<Int> = emptyList(),
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val selectableApps: List<SelectableApp> = emptyList(),
-    val appLimitSecondOptions: List<Int> = emptyList()
-)
+    val appLimitSecondOptions: List<Int> = emptyList(),
+    val focusSessionEndsAtMillis: Long = 0L
+) {
+    val hasVerticalVideoRule: Boolean
+        get() = instagramReelsEnabled || youtubeShortsEnabled || facebookReelsEnabled ||
+            xVideosEnabled || tikTokForYouEnabled || kwaiFeedEnabled
+}
 
 class MoreFocusViewModel(
     private val settingsRepository: MoreFocusSettingsRepository,
@@ -42,6 +47,11 @@ class MoreFocusViewModel(
 
     fun refresh() {
         _uiState.value = loadUiState()
+    }
+
+    fun startFocusSession() {
+        settingsRepository.startFocusSession()
+        refresh()
     }
 
     fun setFocusEnabled(enabled: Boolean) {
@@ -139,6 +149,8 @@ class MoreFocusViewModel(
         val settings = settingsRepository.getSettings()
         val blockSettings = settingsRepository.getBlockSettings()
         return MoreFocusUiState(
+            focusSessionEndsAtMillis = blockSettings.focusSessionEndsAtMillis
+                .takeIf { it > System.currentTimeMillis() } ?: 0L,
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
             showUsageNotification = settings.showUsageNotification,

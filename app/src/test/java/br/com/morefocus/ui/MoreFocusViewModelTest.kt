@@ -216,10 +216,15 @@ class MoreFocusViewModelTest {
 
         override fun getSettings(): MoreFocusSettings = settings
 
+        private var focusSessionEnd = 0L
+
+        override fun startFocusSession() { focusSessionEnd = System.currentTimeMillis() + 1_800_000L }
+
         override fun getBlockSettings(nowMillis: Long): BlockSettings =
             BlockSettings(
                 focusEnabled = settings.focusEnabled,
                 instagramReelsEnabled = settings.instagramReelsEnabled,
+                focusSessionEndsAtMillis = focusSessionEnd,
                 hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
                 xVideosEnabled = settings.xVideosEnabled,

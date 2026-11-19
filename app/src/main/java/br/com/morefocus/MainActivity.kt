@@ -36,6 +36,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +49,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -60,6 +64,7 @@ import br.com.morefocus.data.SelectableApp
 import br.com.morefocus.ui.MoreFocusUiState
 import br.com.morefocus.ui.MoreFocusViewModel
 import br.com.morefocus.ui.theme.MoreFocusTheme
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(
@@ -132,9 +137,18 @@ private fun MoreFocusApp(
     onOpenAccessibilitySettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sessionEnd = uiState.focusSessionEndsAtMillis
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(sessionEnd, lifecycle) {
+        if (sessionEnd > 0L) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            delay(sessionEnd - System.currentTimeMillis())
+            viewModel.refresh()
+        }
+    }
 
     MoreFocusScreen(
         uiState = uiState,
+        onStartFocusSession = viewModel::startFocusSession,
         onFocusEnabledChange = viewModel::setFocusEnabled,
         onShowUsageNotificationChange = onShowUsageNotificationChange,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
@@ -169,6 +183,7 @@ private enum class MoreFocusDestination(
 @Composable
 internal fun MoreFocusScreen(
     uiState: MoreFocusUiState,
+    onStartFocusSession: () -> Unit,
     onFocusEnabledChange: (Boolean) -> Unit,
     onShowUsageNotificationChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
@@ -223,7 +238,7 @@ internal fun MoreFocusScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             composable(MoreFocusDestination.Usage.route) {
-                UsageScreen(uiState, onOpenAccessibilitySettings)
+                UsageScreen(uiState, onStartFocusSession, onOpenAccessibilitySettings)
             }
             composable(MoreFocusDestination.Preferences.route) {
                 PreferencesScreen(
@@ -622,6 +637,7 @@ private fun MoreFocusScreenPreview() {
                     60 * 60
                 )
             ),
+            onStartFocusSession = {},
             onFocusEnabledChange = {},
             onShowUsageNotificationChange = {},
             onInstagramReelsEnabledChange = {},

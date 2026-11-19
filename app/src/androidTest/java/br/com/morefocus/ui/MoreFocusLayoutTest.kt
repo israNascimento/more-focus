@@ -44,6 +44,19 @@ class MoreFocusLayoutTest {
     private var editedLimit: Pair<String, Int>? = null
 
     @Test
+    fun usageOffersOneSessionAndShowsItsEndWithOnlyKwaiEnabled() {
+        state = state.copy(instagramReelsEnabled = false, youtubeShortsEnabled = false, facebookReelsEnabled = false,
+            xVideosEnabled = false, tikTokForYouEnabled = false)
+        launch()
+        tap("Foco por 30 minutos")
+        compose.onNodeWithText("Foco até ", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Foco por 30 minutos").assertDoesNotExist()
+        tap("Preferências")
+        tap("Uso")
+        compose.onNodeWithText("Foco até ", substring = true).assertIsDisplayed()
+    }
+
+    @Test
     fun appDetailsRouteVideoTogglesAndWholeAppLimitsSeparately() {
         launch()
         tap("Preferências")
@@ -123,6 +136,7 @@ class MoreFocusLayoutTest {
             MoreFocusTheme(dynamicColor = false) {
                 MoreFocusScreen(
                     uiState = state,
+                    onStartFocusSession = { state = state.copy(focusSessionEndsAtMillis = System.currentTimeMillis() + 1_800_000L) },
                     onFocusEnabledChange = {},
                     onShowUsageNotificationChange = {},
                     onInstagramReelsEnabledChange = { state = state.copy(instagramReelsEnabled = it) },

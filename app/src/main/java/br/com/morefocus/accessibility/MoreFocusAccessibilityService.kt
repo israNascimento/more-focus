@@ -230,7 +230,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val settings = storedSettings.withActiveUsage(packageName, nowMillis)
         val blockFeedFor = packageName?.takeIf {
             (it == INSTAGRAM_PACKAGE_NAME || it == YOUTUBE_PACKAGE_NAME) &&
-                settings.hardVerticalVideoLimitReached && monitoringScope.monitorsVerticalVideos(it)
+                settings.forcesVideoExit(nowMillis) && monitoringScope.monitorsVerticalVideos(it)
         }
         if (blockFeedFor != blockedFeedPackage) {
             blockedFeedPackage = blockFeedFor
@@ -244,7 +244,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             } == true
         val videoAction = decisionEngine.verticalVideoAction(settings, isEnabledVerticalVideo, nowMillis)
         if (videoAction == VerticalVideoAction.GO_BACK) {
-            finishTracking(nowMillis)
+            finishActiveVerticalVideosSession(nowMillis)
+            updateActiveLimitedAppTracking(settings, packageName, nowMillis)
+            scheduleUsageFlush()
             val uptime = SystemClock.uptimeMillis()
             if (uptime >= nextVideoBackAtUptime) {
                 exitVideoViewer(packageName, activeRoot())
@@ -742,6 +744,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val resetDelayMillis = dailyUsageClock.millisUntilNextDay(nowMillis)
             .takeIf { it > 0L }
         val nextDelayMillis = listOfNotNull(
+            (settings.focusSessionEndsAtMillis - nowMillis).takeIf { blockedFeedPackage != null && it > 0L },
             pauseDelayMillis,
             appLimitDelayMillis,
             verticalVideosLimitDelayMillis,

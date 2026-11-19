@@ -6,9 +6,9 @@ Hoje, Reels do Instagram e do Facebook, Shorts, vídeos em tela cheia do X, o fe
 
 Quem vai estudar ou trabalhar pode guardar o saldo diário de vídeos para mais tarde.
 
-- [ ] Na aba Uso, oferecer a ação **Foco por 30 minutos** e mostrar a que horas a sessão termina.
-- [ ] Durante a sessão, bloquear a abertura de Reels e Shorts habilitados mesmo quando ainda houver saldo. Permitir responder a mensagens no Instagram e assistir a vídeos comuns no YouTube, respeitando eventuais limites do aplicativo inteiro.
-- [ ] Ao terminar a sessão, voltar a aplicar o limite diário. O tempo passado com os vídeos bloqueados não consome saldo.
+- [x] Na aba Uso, oferecer a ação **Foco por 30 minutos** e mostrar a que horas a sessão termina.
+- [x] Durante a sessão, bloquear os feeds de vídeos curtos com regra ativa mesmo quando ainda houver saldo. A sessão inclui Reels do Instagram e do Facebook, Shorts do YouTube, vídeos em tela cheia do X, Para Você do TikTok e o feed de vídeos do Kwai. Mensagens, perfis e vídeos comuns continuam disponíveis conforme os limites do aplicativo inteiro.
+- [x] Ao terminar a sessão, voltar a aplicar o limite diário. O tempo passado com os vídeos bloqueados não consome saldo.
 
 ## 2. Agendar horários sem vídeos curtos
 

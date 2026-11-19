@@ -22,7 +22,8 @@ data class BlockSettings(
     val xVideosEnabled: Boolean = true,
     val tikTokForYouEnabled: Boolean = true,
     val facebookReelsEnabled: Boolean = true,
-    val kwaiFeedEnabled: Boolean = true
+    val kwaiFeedEnabled: Boolean = true,
+    val focusSessionEndsAtMillis: Long = 0L
 ) {
     val dailyVerticalVideosLimitMillis: Long
         get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
@@ -34,6 +35,9 @@ data class BlockSettings(
     val hardVerticalVideoLimitReached: Boolean
         get() = hardBlockVerticalVideos && focusEnabled &&
             remainingDailyVerticalVideosLimitMillis == 0L
+
+    fun forcesVideoExit(nowMillis: Long): Boolean =
+        hardVerticalVideoLimitReached || (focusEnabled && nowMillis < focusSessionEndsAtMillis)
 
     fun appLimitRuleFor(packageName: String?): AppLimitRule? =
         packageName
@@ -120,7 +124,7 @@ class BlockDecisionEngine(
         nowMillis: Long
     ): VerticalVideoAction = when {
         !isEnabledVerticalVideo || !settings.focusEnabled -> VerticalVideoAction.NONE
-        settings.hardVerticalVideoLimitReached -> VerticalVideoAction.GO_BACK
+        settings.forcesVideoExit(nowMillis) -> VerticalVideoAction.GO_BACK
         settings.pauseUntilMillis > nowMillis -> VerticalVideoAction.NONE
         settings.remainingDailyVerticalVideosLimitMillis == 0L -> VerticalVideoAction.SHOW_WARNING
         else -> VerticalVideoAction.NONE

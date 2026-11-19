@@ -63,6 +63,8 @@ interface MoreFocusSettingsRepository {
         )
     }
 
+    fun startFocusSession()
+
     fun setFocusEnabled(enabled: Boolean)
 
     fun setShowUsageNotification(show: Boolean)
@@ -162,6 +164,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
         cachedMonitoringScope ?: preferences.getMonitoringScope().also { scope ->
             cachedMonitoringScope = scope
         }
+
+    override fun startFocusSession() = preferences.startFocusSession()
 
     override fun setFocusEnabled(enabled: Boolean) {
         preferences.setFocusEnabled(enabled)

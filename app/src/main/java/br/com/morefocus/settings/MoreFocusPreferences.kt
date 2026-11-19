@@ -48,6 +48,7 @@ class MoreFocusPreferences(context: Context) {
             facebookReelsEnabled = isFacebookReelsEnabled(),
             kwaiFeedEnabled = isKwaiFeedEnabled(),
             tikTokForYouEnabled = isTikTokForYouEnabled(),
+            focusSessionEndsAtMillis = focusSessionEndsAtMillis(),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -74,6 +75,7 @@ class MoreFocusPreferences(context: Context) {
             facebookReelsEnabled = isFacebookReelsEnabled(),
             kwaiFeedEnabled = isKwaiFeedEnabled(),
             tikTokForYouEnabled = isTikTokForYouEnabled(),
+            focusSessionEndsAtMillis = focusSessionEndsAtMillis(),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -100,6 +102,13 @@ class MoreFocusPreferences(context: Context) {
 
     fun isFocusEnabled(): Boolean =
         preferences.getBoolean(KEY_FOCUS_ENABLED, true)
+
+    private fun focusSessionEndsAtMillis(): Long = preferences.getLong(KEY_FOCUS_SESSION_END, 0L)
+
+    fun startFocusSession(nowMillis: Long = System.currentTimeMillis()) {
+        if (focusSessionEndsAtMillis() > nowMillis) return
+        preferences.edit { putLong(KEY_FOCUS_SESSION_END, nowMillis + FOCUS_SESSION_DURATION_MILLIS) }
+    }
 
     fun showUsageNotification(): Boolean = preferences.getBoolean(KEY_SHOW_USAGE_NOTIFICATION, true)
 
@@ -302,11 +311,18 @@ class MoreFocusPreferences(context: Context) {
         startedAtMillis: Long?,
         endedAtMillis: Long
     ): DailyUsageState {
-        val updatedState = dailyUsageClock.addVisibleTime(
-            state = storedDailyUsageState(),
-            startedAtMillis = startedAtMillis,
-            endedAtMillis = endedAtMillis
-        )
+        val sessionEnd = focusSessionEndsAtMillis()
+        val sessionStart = sessionEnd - FOCUS_SESSION_DURATION_MILLIS
+        var usage = storedDailyUsageState()
+        var visibleFrom = startedAtMillis
+        // A final accessibility event or periodic flush can straddle the start of focus.
+        if (startedAtMillis != null && startedAtMillis < sessionEnd && endedAtMillis > sessionStart) {
+            if (startedAtMillis < sessionStart) {
+                usage = dailyUsageClock.addVisibleTime(usage, startedAtMillis, sessionStart)
+            }
+            visibleFrom = sessionEnd
+        }
+        val updatedState = dailyUsageClock.addVisibleTime(usage, visibleFrom, endedAtMillis)
         saveDailyUsageState(updatedState)
         return updatedState
     }
@@ -462,6 +478,8 @@ class MoreFocusPreferences(context: Context) {
         private const val SECONDS_PER_MINUTE = 60
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
+        private const val FOCUS_SESSION_DURATION_MILLIS = 30 * 60_000L
+        private const val KEY_FOCUS_SESSION_END = "focus_session_ends_at_millis"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
         private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"
         private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"

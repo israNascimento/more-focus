@@ -41,6 +41,49 @@ class ReelsBlockerTest {
     }
 
     @Test
+    fun focusSessionOverridesAnExtensionAndEndsAtTheSavedDeadline() {
+        val settings = BlockSettings(true, true, focusSessionEndsAtMillis = 5_000L, pauseUntilMillis = 4_000L)
+        val viewers = listOf(
+            explicitReelsScreen(), youtubeShortsScreen(),
+            ScreenSnapshot(FACEBOOK_PACKAGE_NAME, null, facebookReelsViewer = true),
+            ScreenSnapshot(X_PACKAGE_NAME, null, setOf(X_VIDEO_VIEWER_ID)),
+            ScreenSnapshot(TIKTOK_PACKAGE_NAME, null, setOf(TIKTOK_FEED_PAGE_ID), selectedTikTokTab = "Para você"),
+            ScreenSnapshot(KWAI_PACKAGE_NAME, null, kwaiHomeFeed = true)
+        )
+        for (screen in viewers) {
+            fun action(s: BlockSettings, now: Long) =
+                engine.verticalVideoAction(s, engine.isEnabledVerticalVideo(s, screen), now)
+            assertEquals(VerticalVideoAction.GO_BACK, action(settings, 3_000L))
+            assertEquals(VerticalVideoAction.GO_BACK, action(settings, 4_999L))
+            assertEquals(VerticalVideoAction.NONE, action(settings, 5_000L))
+            assertEquals(VerticalVideoAction.SHOW_WARNING, action(settings.copy(dailyVerticalVideosUsageMillis = 900_000L), 5_000L))
+            assertEquals(VerticalVideoAction.NONE, action(settings.copy(focusEnabled = false), 3_000L))
+        }
+    }
+
+    @Test
+    fun focusSessionRespectsViewerRulesAndWholeAppLimits() {
+        val settings = BlockSettings(true, true, focusSessionEndsAtMillis = 5_000L)
+        val inbox = appScreen(INSTAGRAM_PACKAGE_NAME)
+        val regularVideo = appScreen(YOUTUBE_PACKAGE_NAME)
+        val ordinaryScreens = listOf(inbox, regularVideo, appScreen(X_PACKAGE_NAME), appScreen(TIKTOK_PACKAGE_NAME),
+            appScreen(FACEBOOK_PACKAGE_NAME), appScreen(KWAI_PACKAGE_NAME))
+        for (screen in ordinaryScreens) assertFalse(engine.shouldBlock(settings, screen, 1_000L))
+        val exhausted = appLimitRule(limitSeconds = 30, usageMillis = 30_000L).copy(packageName = YOUTUBE_PACKAGE_NAME)
+        assertTrue(engine.shouldBlock(settings.copy(appLimitRules = listOf(exhausted)), regularVideo, 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(instagramReelsEnabled = false), explicitReelsScreen(), 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(youtubeShortsEnabled = false), youtubeShortsScreen(), 1_000L))
+        val facebook = ScreenSnapshot(FACEBOOK_PACKAGE_NAME, null, facebookReelsViewer = true)
+        assertFalse(engine.shouldBlock(settings.copy(facebookReelsEnabled = false), facebook, 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(kwaiFeedEnabled = false),
+            ScreenSnapshot(KWAI_PACKAGE_NAME, null, kwaiHomeFeed = true), 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(xVideosEnabled = false),
+            ScreenSnapshot(X_PACKAGE_NAME, null, setOf(X_VIDEO_VIEWER_ID)), 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(tikTokForYouEnabled = false),
+            ScreenSnapshot(TIKTOK_PACKAGE_NAME, null, setOf(TIKTOK_FEED_PAGE_ID), selectedTikTokTab = "Para você"), 1_000L))
+    }
+
+    @Test
     fun kwaiLeavesOtherTabsFreeAndHonorsItsOwnRule() {
         val settings = settingsAtLimit()
         val feed = ScreenSnapshot(KWAI_PACKAGE_NAME, null, kwaiHomeFeed = true)

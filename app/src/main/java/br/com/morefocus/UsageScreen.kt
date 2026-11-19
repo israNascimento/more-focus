@@ -1,5 +1,6 @@
 package br.com.morefocus
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,15 +27,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.ui.MoreFocusUiState
+import java.util.Date
 
 @Composable
-internal fun UsageScreen(uiState: MoreFocusUiState, onOpenAccessibilitySettings: () -> Unit) {
+internal fun UsageScreen(
+    uiState: MoreFocusUiState,
+    onStartFocusSession: () -> Unit,
+    onOpenAccessibilitySettings: () -> Unit
+) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -41,6 +49,23 @@ internal fun UsageScreen(uiState: MoreFocusUiState, onOpenAccessibilitySettings:
         ScreenHeader(R.string.usage_today_title)
         if (!uiState.serviceEnabled) AccessibilityStatus(false, onOpenAccessibilitySettings)
         SharedUsageCard(uiState)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (uiState.focusSessionEndsAtMillis > 0L) {
+                val time = DateFormat.getTimeFormat(LocalContext.current).format(Date(uiState.focusSessionEndsAtMillis))
+                Text(stringResource(R.string.focus_session_until, time), style = MaterialTheme.typography.titleMedium)
+            } else {
+                Button(
+                    onClick = onStartFocusSession,
+                    enabled = uiState.focusEnabled && uiState.serviceEnabled && uiState.hasVerticalVideoRule
+                ) { Text(stringResource(R.string.start_focus_session)) }
+            }
+            val description = when {
+                !uiState.focusEnabled -> R.string.focus_session_enable_focus
+                !uiState.hasVerticalVideoRule -> R.string.focus_session_enable_rules
+                else -> R.string.focus_session_description
+            }
+            Text(stringResource(description), style = MaterialTheme.typography.bodyMedium)
+        }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SectionTitle(R.string.usage_apps_title)
             Text(
@@ -61,9 +86,7 @@ private fun SharedUsageCard(uiState: MoreFocusUiState) {
     val limit = uiState.dailyVerticalVideosLimitSeconds * 1000L
     val remaining = (limit - used).coerceAtLeast(0L)
     val caption = when {
-        !uiState.instagramReelsEnabled && !uiState.youtubeShortsEnabled &&
-            !uiState.xVideosEnabled && !uiState.tikTokForYouEnabled && !uiState.facebookReelsEnabled &&
-            !uiState.kwaiFeedEnabled -> R.string.usage_rule_disabled
+        !uiState.hasVerticalVideoRule -> R.string.usage_rule_disabled
         used >= limit -> R.string.usage_limit_reached
         else -> R.string.usage_remaining_today
     }

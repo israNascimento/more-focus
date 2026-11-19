@@ -35,6 +35,34 @@ class MoreFocusPreferencesTest {
     }
 
     @Test
+    fun focusSessionPersistsAcrossMidnightAndRepeatedStartsKeepTheDeadline() {
+        val start = millis(year = 2026, month = 11, day = 19, hour = 23) + 50 * 60_000L
+        val end = start + 30 * 60_000L
+        preferences.startFocusSession(start)
+        val reopened = MoreFocusPreferences(context)
+        reopened.startFocusSession(start + 20 * 60_000L)
+        assertEquals(end, reopened.getBlockSettings(start).focusSessionEndsAtMillis)
+        val settings = reopened.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, end - 1)
+        assertTrue(settings.forcesVideoExit(end - 1))
+        assertFalse(settings.forcesVideoExit(end))
+        reopened.startFocusSession(end)
+        assertEquals(end + 30 * 60_000L, reopened.getBlockSettings(end).focusSessionEndsAtMillis)
+    }
+
+    @Test
+    fun delayedUsageFlushExcludesOnlyThePartInsideFocusAndPreservesAppTime() {
+        val start = millis(year = 2026, month = 11, day = 19, hour = 10)
+        val end = start + 30 * 60_000L
+        preferences.startFocusSession(start)
+        preferences.recordDailyVerticalVideosUsage(start - 5_000, start + 1_000)
+        preferences.recordDailyVerticalVideosUsage(start + 1_000, end - 1_000)
+        assertEquals(5_000L, preferences.getBlockSettings(end - 1).dailyVerticalVideosUsageMillis)
+        preferences.recordDailyVerticalVideosUsage(end - 1_000, end + 2_000)
+        assertEquals(7_000L, preferences.getBlockSettings(end + 2_000).dailyVerticalVideosUsageMillis)
+        assertEquals(6_000L, preferences.recordDailyAppUsage(INSTAGRAM_PACKAGE_NAME, start, start + 6_000).usedMillis)
+    }
+
+    @Test
     fun exponentialPauseLockIsEnabledByDefaultAndCanBeChanged() {
         assertTrue(preferences.isExponentialPauseLockEnabled())
 
