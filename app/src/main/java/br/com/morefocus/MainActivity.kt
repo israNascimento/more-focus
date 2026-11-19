@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,26 +20,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,11 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
@@ -90,7 +82,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MoreFocusTheme {
+            MoreFocusTheme(dynamicColor = false) {
                 MoreFocusApp(
                     viewModel = viewModel,
                     onShowUsageNotificationChange = { show ->
@@ -162,14 +154,15 @@ private fun MoreFocusApp(
 
 private enum class MoreFocusDestination(
     val route: String,
-    @StringRes val labelResId: Int
+    @StringRes val labelResId: Int,
+    @DrawableRes val icon: Int
 ) {
-    Usage("usage", R.string.usage_tab_title),
-    Preferences("preferences", R.string.preferences_tab_title)
+    Usage("usage", R.string.usage_tab_title, R.drawable.ic_usage),
+    Preferences("preferences", R.string.preferences_tab_title, R.drawable.ic_preferences)
 }
 
 @Composable
-private fun MoreFocusScreen(
+internal fun MoreFocusScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
     onShowUsageNotificationChange: (Boolean) -> Unit,
@@ -186,35 +179,14 @@ private fun MoreFocusScreen(
     onOpenAccessibilitySettings: () -> Unit
 ) {
     val navController = rememberNavController()
-    val destinations = remember { MoreFocusDestination.entries.toList() }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: MoreFocusDestination.Usage.route
-    val selectedTabIndex = destinations
-        .indexOfFirst { destination -> destination.route == currentRoute }
-        .coerceAtLeast(0)
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                Header(
-                    modifier = Modifier.padding(
-                        start = 20.dp,
-                        top = 24.dp,
-                        end = 20.dp,
-                        bottom = 16.dp
-                    )
-                )
-                TabRow(selectedTabIndex = selectedTabIndex) {
-                    destinations.forEach { destination ->
-                        Tab(
+    Scaffold(
+        bottomBar = {
+            if (MoreFocusDestination.entries.any { it.route == currentRoute }) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    MoreFocusDestination.entries.forEach { destination ->
+                        NavigationBarItem(
                             selected = destination.route == currentRoute,
                             onClick = {
                                 if (destination.route != currentRoute) {
@@ -227,465 +199,76 @@ private fun MoreFocusScreen(
                                     }
                                 }
                             },
-                            text = { Text(text = stringResource(destination.labelResId)) }
-                        )
-                    }
-                }
-                NavHost(
-                    navController = navController,
-                    startDestination = MoreFocusDestination.Usage.route,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    composable(MoreFocusDestination.Usage.route) {
-                        UsageScreen(uiState = uiState)
-                    }
-                    composable(MoreFocusDestination.Preferences.route) {
-                        PreferencesScreen(
-                            uiState = uiState,
-                            onFocusEnabledChange = onFocusEnabledChange,
-                            onShowUsageNotificationChange = onShowUsageNotificationChange,
-                            onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
-                            onHideFeedReelsChange = onHideFeedReelsChange,
-                            onHardBlockReelsChange = onHardBlockReelsChange,
-                            onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
-                            onExponentialPauseLockEnabledChange =
-                                onExponentialPauseLockEnabledChange,
-                            onDailyVerticalVideosLimitSecondsChange =
-                                onDailyVerticalVideosLimitSecondsChange,
-                            onAddAppLimit = onAddAppLimit,
-                            onAppLimitSecondsChange = onAppLimitSecondsChange,
-                            onAppLimitEnabledChange = onAppLimitEnabledChange,
-                            onRemoveAppLimit = onRemoveAppLimit,
-                            onOpenAccessibilitySettings = onOpenAccessibilitySettings
+                            icon = { Icon(painterResource(destination.icon), null) },
+                            label = { Text(stringResource(destination.labelResId)) }
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PreferencesScreen(
-    uiState: MoreFocusUiState,
-    onFocusEnabledChange: (Boolean) -> Unit,
-    onShowUsageNotificationChange: (Boolean) -> Unit,
-    onInstagramReelsEnabledChange: (Boolean) -> Unit,
-    onHideFeedReelsChange: (Boolean) -> Unit,
-    onHardBlockReelsChange: (Boolean) -> Unit,
-    onYouTubeShortsEnabledChange: (Boolean) -> Unit,
-    onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
-    onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
-    onAddAppLimit: (String, Int) -> Unit,
-    onAppLimitSecondsChange: (String, Int) -> Unit,
-    onAppLimitEnabledChange: (String, Boolean) -> Unit,
-    onRemoveAppLimit: (String) -> Unit,
-    onOpenAccessibilitySettings: () -> Unit
-) {
-    val scrollable = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollable)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        ServiceStatusCard(
-            serviceEnabled = uiState.serviceEnabled,
-            onOpenAccessibilitySettings = onOpenAccessibilitySettings
-        )
-
-        DisclosureCard()
-
-        PreferenceCard(
-            focusEnabled = uiState.focusEnabled,
-            showUsageNotification = uiState.showUsageNotification,
-            instagramReelsEnabled = uiState.instagramReelsEnabled,
-            hideFeedReels = uiState.hideFeedReels,
-            hardBlockReels = uiState.hardBlockReels,
-            youtubeShortsEnabled = uiState.youtubeShortsEnabled,
-            exponentialPauseLockEnabled = uiState.exponentialPauseLockEnabled,
-            dailyVerticalVideosLimitSeconds = uiState.dailyVerticalVideosLimitSeconds,
-            dailyVerticalVideosLimitSecondOptions =
-                uiState.dailyVerticalVideosLimitSecondOptions,
-            onFocusEnabledChange = onFocusEnabledChange,
-            onShowUsageNotificationChange = onShowUsageNotificationChange,
-            onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
-            onHideFeedReelsChange = onHideFeedReelsChange,
-            onHardBlockReelsChange = onHardBlockReelsChange,
-            onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
-            onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
-            onDailyVerticalVideosLimitSecondsChange =
-                onDailyVerticalVideosLimitSecondsChange,
-            appLimitRules = uiState.appLimitRules,
-            selectableApps = uiState.selectableApps,
-            appLimitSecondOptions = uiState.appLimitSecondOptions,
-            onAddAppLimit = onAddAppLimit,
-            onAppLimitSecondsChange = onAppLimitSecondsChange,
-            onAppLimitEnabledChange = onAppLimitEnabledChange,
-            onRemoveAppLimit = onRemoveAppLimit
-        )
-    }
-}
-
-@Composable
-private fun UsageScreen(uiState: MoreFocusUiState) {
-    val scrollable = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollable)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = stringResource(R.string.usage_today_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(R.string.usage_today_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        UsageSummaryCard(
-            title = stringResource(R.string.usage_vertical_videos_title),
-            usedMillis = uiState.dailyVerticalVideosUsageMillis,
-            limitMillis = uiState.dailyVerticalVideosLimitSeconds.toLimitMillis(),
-            enabled = uiState.instagramReelsEnabled || uiState.youtubeShortsEnabled
-        )
-
-        Text(
-            text = stringResource(R.string.usage_apps_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        if (uiState.appLimitRules.isEmpty()) {
-            Text(
-                text = stringResource(R.string.usage_apps_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                uiState.appLimitRules.forEach { rule ->
-                    UsageSummaryCard(
-                        title = rule.appName,
-                        usedMillis = rule.usageMillis,
-                        limitMillis = rule.limitMillis,
-                        enabled = rule.enabled
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun UsageSummaryCard(
-    title: String,
-    usedMillis: Long,
-    limitMillis: Long,
-    enabled: Boolean
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = MoreFocusDestination.Usage.route,
+            modifier = Modifier.fillMaxSize().padding(padding)
         ) {
-            UsageCircularProgress(
-                usedMillis = usedMillis,
-                limitMillis = limitMillis
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+            composable(MoreFocusDestination.Usage.route) {
+                UsageScreen(uiState, onOpenAccessibilitySettings)
+            }
+            composable(MoreFocusDestination.Preferences.route) {
+                PreferencesScreen(
+                    uiState = uiState,
+                    onFocusEnabledChange = onFocusEnabledChange,
+                    onShowUsageNotificationChange = onShowUsageNotificationChange,
+                    onExponentialPauseLockEnabledChange = onExponentialPauseLockEnabledChange,
+                    onLimitSelected = onDailyVerticalVideosLimitSecondsChange,
+                    onOpenApp = { navController.navigate(it.route) },
+                    onOpenOtherApps = { navController.navigate("other-apps") },
+                    onOpenAccessibilitySettings = onOpenAccessibilitySettings
                 )
-                Text(
-                    text = stringResource(
-                        R.string.usage_time,
-                        durationLabel(usedMillis),
-                        durationLabel(limitMillis)
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (!enabled) {
-                    Text(
-                        text = stringResource(R.string.usage_rule_disabled),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else if (usedMillis >= limitMillis) {
-                    Text(
-                        text = stringResource(R.string.usage_limit_reached),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+            }
+            FeaturedApp.entries.forEach { app ->
+                composable(app.route) {
+                    AppPreferencesScreen(
+                        app = app,
+                        uiState = uiState,
+                        onBack = { navController.popBackStack() },
+                        onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+                        onAddAppLimit = onAddAppLimit,
+                        onLimitSelected = onAppLimitSecondsChange,
+                        onEnabledChange = onAppLimitEnabledChange,
+                        onRemove = onRemoveAppLimit
+                    ) {
+                        when (app) {
+                            FeaturedApp.Instagram -> InstagramPreferences(
+                                uiState, onInstagramReelsEnabledChange,
+                                onHideFeedReelsChange, onHardBlockReelsChange
+                            )
+                            FeaturedApp.YouTube -> ToggleRow(
+                                stringResource(R.string.preference_youtube_shorts_enabled_title),
+                                uiState.youtubeShortsEnabled,
+                                onYouTubeShortsEnabledChange,
+                                stringResource(R.string.shared_limit_note)
+                            )
+                        }
+                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun UsageCircularProgress(
-    usedMillis: Long,
-    limitMillis: Long
-) {
-    val safeLimitMillis = limitMillis.coerceAtLeast(1L)
-    val progress = (usedMillis.toFloat() / safeLimitMillis.toFloat()).coerceIn(0f, 1f)
-
-    Box(
-        modifier = Modifier.size(96.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxSize(),
-            strokeWidth = 8.dp,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-        Text(
-            text = durationLabel(usedMillis),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun Header(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = stringResource(R.string.header_subtitle),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun ServiceStatusCard(
-    serviceEnabled: Boolean,
-    onOpenAccessibilitySettings: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (serviceEnabled) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            }
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = if (serviceEnabled) {
-                    stringResource(R.string.accessibility_status_active)
-                } else {
-                    stringResource(R.string.accessibility_status_inactive)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = if (serviceEnabled) {
-                    stringResource(R.string.accessibility_status_active_description)
-                } else {
-                    stringResource(R.string.accessibility_status_inactive_description)
-                },
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Button(onClick = onOpenAccessibilitySettings) {
-                Text(text = stringResource(R.string.open_accessibility_settings))
-            }
-        }
-    }
-}
-
-@Composable
-private fun DisclosureCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.accessibility_disclosure_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(R.string.accessibility_disclosure_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun PreferenceCard(
-    focusEnabled: Boolean,
-    showUsageNotification: Boolean,
-    instagramReelsEnabled: Boolean,
-    hideFeedReels: Boolean,
-    hardBlockReels: Boolean,
-    youtubeShortsEnabled: Boolean,
-    exponentialPauseLockEnabled: Boolean,
-    dailyVerticalVideosLimitSeconds: Int,
-    dailyVerticalVideosLimitSecondOptions: List<Int>,
-    onFocusEnabledChange: (Boolean) -> Unit,
-    onShowUsageNotificationChange: (Boolean) -> Unit,
-    onInstagramReelsEnabledChange: (Boolean) -> Unit,
-    onHideFeedReelsChange: (Boolean) -> Unit,
-    onHardBlockReelsChange: (Boolean) -> Unit,
-    onYouTubeShortsEnabledChange: (Boolean) -> Unit,
-    onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
-    onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
-    appLimitRules: List<AppLimitRule>,
-    selectableApps: List<SelectableApp>,
-    appLimitSecondOptions: List<Int>,
-    onAddAppLimit: (String, Int) -> Unit,
-    onAppLimitSecondsChange: (String, Int) -> Unit,
-    onAppLimitEnabledChange: (String, Boolean) -> Unit,
-    onRemoveAppLimit: (String) -> Unit
-) {
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.preferences_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            ToggleRow(
-                title = stringResource(R.string.preference_focus_enabled_title),
-                description = stringResource(R.string.preference_focus_enabled_description),
-                checked = focusEnabled,
-                onCheckedChange = onFocusEnabledChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_usage_notification_title),
-                description = stringResource(R.string.preference_usage_notification_description),
-                checked = showUsageNotification,
-                onCheckedChange = onShowUsageNotificationChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_exponential_pause_lock_title),
-                description = stringResource(
-                    R.string.preference_exponential_pause_lock_description
-                ),
-                checked = exponentialPauseLockEnabled,
-                onCheckedChange = onExponentialPauseLockEnabledChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_instagram_reels_enabled_title),
-                description = stringResource(R.string.preference_instagram_reels_enabled_description),
-                checked = instagramReelsEnabled,
-                onCheckedChange = onInstagramReelsEnabledChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_hide_feed_reels_title),
-                description = stringResource(R.string.preference_hide_feed_reels_description),
-                checked = hideFeedReels,
-                onCheckedChange = onHideFeedReelsChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_hard_block_reels_title),
-                description = stringResource(R.string.preference_hard_block_reels_description),
-                checked = hardBlockReels,
-                onCheckedChange = onHardBlockReelsChange
-            )
-            ToggleRow(
-                title = stringResource(R.string.preference_youtube_shorts_enabled_title),
-                description = stringResource(R.string.preference_youtube_shorts_enabled_description),
-                checked = youtubeShortsEnabled,
-                onCheckedChange = onYouTubeShortsEnabledChange
-            )
-            DailyLimitSelector(
-                selectedLimitSeconds = dailyVerticalVideosLimitSeconds,
-                limitOptions = dailyVerticalVideosLimitSecondOptions,
-                onLimitSelected = onDailyVerticalVideosLimitSecondsChange
-            )
-            AppLimitSection(
-                appLimitRules = appLimitRules,
-                selectableApps = selectableApps,
-                limitOptions = appLimitSecondOptions,
-                onAddAppLimit = onAddAppLimit,
-                onLimitSelected = onAppLimitSecondsChange,
-                onEnabledChange = onAppLimitEnabledChange,
-                onRemove = onRemoveAppLimit
-            )
-        }
-    }
-}
-
-@Composable
-private fun DailyLimitSelector(
-    selectedLimitSeconds: Int,
-    limitOptions: List<Int>,
-    onLimitSelected: (Int) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.daily_vertical_videos_limit_title),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = stringResource(R.string.daily_vertical_videos_limit_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            limitOptions.chunked(3).forEach { rowOptions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            composable("other-apps") {
+                PreferencesDetailLayout(
+                    onBack = { navController.popBackStack() },
+                    serviceEnabled = uiState.serviceEnabled,
+                    onOpenAccessibilitySettings = onOpenAccessibilitySettings
                 ) {
-                    rowOptions.forEach { limitSeconds ->
-                        FilterChip(
-                            modifier = Modifier.weight(1f),
-                            selected = selectedLimitSeconds == limitSeconds,
-                            onClick = { onLimitSelected(limitSeconds) },
-                            label = {
-                                Text(text = limitOptionLabel(limitSeconds))
-                            }
-                        )
-                    }
-                    repeat(3 - rowOptions.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                    AppLimitSection(
+                        appLimitRules = uiState.appLimitRules.filter { featuredApp(it.packageName) == null },
+                        selectableApps = uiState.selectableApps.filter { featuredApp(it.packageName) == null },
+                        limitOptions = uiState.appLimitSecondOptions,
+                        onAddAppLimit = onAddAppLimit,
+                        onLimitSelected = onAppLimitSecondsChange,
+                        onEnabledChange = onAppLimitEnabledChange,
+                        onRemove = onRemoveAppLimit
+                    )
                 }
             }
         }
@@ -909,8 +492,8 @@ private fun AddAppLimitDialog(
 }
 
 @Composable
-private fun LimitOptionChips(
-    selectedLimitSeconds: Int,
+internal fun LimitOptionChips(
+    selectedLimitSeconds: Int?,
     limitOptions: List<Int>,
     enabled: Boolean = true,
     onLimitSelected: (Int) -> Unit
@@ -940,43 +523,6 @@ private fun LimitOptionChips(
     }
 }
 
-@Composable
-private fun ToggleRow(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(
-            modifier = Modifier.semantics { contentDescription = title },
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
-}
-
 private fun Context.openAccessibilitySettings() {
     runCatching {
         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -986,11 +532,8 @@ private fun Context.openAccessibilitySettings() {
 private const val MILLIS_PER_SECOND = 1000L
 private const val SECONDS_PER_MINUTE = 60
 
-private fun Int.toLimitMillis(): Long =
-    coerceAtLeast(1).toLong() * MILLIS_PER_SECOND
-
 @Composable
-private fun durationLabel(durationMillis: Long): String {
+internal fun durationLabel(durationMillis: Long): String {
     val durationSeconds = (durationMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND).toInt()
     return if (durationSeconds < SECONDS_PER_MINUTE) {
         stringResource(R.string.duration_seconds, durationSeconds)
@@ -1000,7 +543,7 @@ private fun durationLabel(durationMillis: Long): String {
 }
 
 @Composable
-private fun limitOptionLabel(limitSeconds: Int): String =
+internal fun limitOptionLabel(limitSeconds: Int): String =
     if (limitSeconds < SECONDS_PER_MINUTE) {
         stringResource(R.string.duration_seconds, limitSeconds)
     } else {
@@ -1010,7 +553,7 @@ private fun limitOptionLabel(limitSeconds: Int): String =
 @Preview(showBackground = true)
 @Composable
 private fun MoreFocusScreenPreview() {
-    MoreFocusTheme {
+    MoreFocusTheme(dynamicColor = false) {
         MoreFocusScreen(
             uiState = MoreFocusUiState(
                 serviceEnabled = false,
@@ -1030,13 +573,13 @@ private fun MoreFocusScreenPreview() {
                 ),
                 appLimitRules = listOf(
                     AppLimitRule(
-                        packageName = "com.instagram.android",
+                        packageName = FeaturedApp.Instagram.packageName,
                         appName = "Instagram",
                         limitSeconds = 30 * 60,
                         usageMillis = 12 * 60 * 1000L
                     ),
                     AppLimitRule(
-                        packageName = "com.youtube.android",
+                        packageName = FeaturedApp.YouTube.packageName,
                         appName = "YouTube",
                         limitSeconds = 15 * 60,
                         usageMillis = 18 * 60 * 1000L
@@ -1044,7 +587,7 @@ private fun MoreFocusScreenPreview() {
                 ),
                 selectableApps = listOf(
                     SelectableApp("com.tiktok", "TikTok"),
-                    SelectableApp("com.youtube", "YouTube")
+                    SelectableApp(FeaturedApp.YouTube.packageName, "YouTube")
                 ),
                 appLimitSecondOptions = listOf(
                     30,
