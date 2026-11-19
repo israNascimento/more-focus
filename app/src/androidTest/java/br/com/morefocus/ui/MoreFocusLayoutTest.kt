@@ -73,7 +73,13 @@ class MoreFocusLayoutTest {
         compose.onNodeWithText("X").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Limitar vídeos em tela cheia").assertIsOn().performClick().assertIsOff()
         backToPreferences()
-        tap("Limite compartilhado")
+        compose.onNodeWithText("TikTok").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Limitar Para Você").assertIsOn().performClick().assertIsOff()
+        backToPreferences()
+        compose.onNodeWithText("Facebook").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Limitar Reels").assertIsOn().performClick().assertIsOff()
+        backToPreferences()
+        compose.onNodeWithText("Limite compartilhado").performScrollTo().performClick()
         tap("10 min")
         tap("Uso")
         compose.onNodeWithText("3 min").assertIsDisplayed()
@@ -122,6 +128,8 @@ class MoreFocusLayoutTest {
                     onHardBlockVerticalVideosChange = { state = state.copy(hardBlockVerticalVideos = it) },
                     onYouTubeShortsEnabledChange = { state = state.copy(youtubeShortsEnabled = it) },
                     onXVideosEnabledChange = { state = state.copy(xVideosEnabled = it) },
+                    onFacebookReelsEnabledChange = { state = state.copy(facebookReelsEnabled = it) },
+                    onTikTokForYouEnabledChange = { state = state.copy(tikTokForYouEnabled = it) },
                     onExponentialPauseLockEnabledChange = {},
                     onDailyVerticalVideosLimitSecondsChange = { state = state.copy(dailyVerticalVideosLimitSeconds = it) },
                     onAddAppLimit = { pkg, seconds -> addedLimit = pkg to seconds },

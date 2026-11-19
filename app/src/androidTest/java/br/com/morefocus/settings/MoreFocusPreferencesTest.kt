@@ -2,8 +2,10 @@ package br.com.morefocus.settings
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
+import br.com.morefocus.blocking.TIKTOK_PACKAGE_NAME
 import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.data.SharedPreferencesMoreFocusSettingsRepository
@@ -160,6 +162,36 @@ class MoreFocusPreferencesTest {
         repository.setInstagramReelsEnabled(false)
 
         assertFalse(repository.getMonitoringScope().instagramReelsEnabled)
+    }
+
+    @Test
+    fun tikTokTogglePersistsIndependentlyOfTheAppLimitAndSharedCounter() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        val start = millis(year = 2026, month = 7, day = 8, hour = 10)
+        repository.recordDailyVerticalVideosUsage(start, start + 600_000)
+        assertEquals(600_000L, repository.getBlockSettingsForPackage(TIKTOK_PACKAGE_NAME, start).dailyVerticalVideosUsageMillis)
+        repository.recordDailyVerticalVideosUsage(start + 600_000, start + 900_000)
+        assertEquals(0L, repository.getBlockSettingsForPackage(YOUTUBE_PACKAGE_NAME, start).remainingDailyVerticalVideosLimitMillis)
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(TIKTOK_PACKAGE_NAME))
+        repository.setAppLimit(TIKTOK_PACKAGE_NAME, "TikTok", 1800)
+        repository.setTikTokForYouEnabled(false)
+        assertFalse(repository.getMonitoringScope().monitorsVerticalVideos(TIKTOK_PACKAGE_NAME))
+        assertTrue(repository.getMonitoringScope().monitorsAppLimit(TIKTOK_PACKAGE_NAME))
+        assertFalse(MoreFocusPreferences(context).getBlockSettingsForPackage(TIKTOK_PACKAGE_NAME).tikTokForYouEnabled)
+    }
+
+    @Test
+    fun facebookReelsRuleSharesUsageAndCanBeDisabledIndependently() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        val start = millis(year = 2026, month = 7, day = 8, hour = 10)
+        repository.recordDailyVerticalVideosUsage(start, start + 30_000L)
+        assertEquals(30_000L, repository.getBlockSettingsForPackage(FACEBOOK_PACKAGE_NAME, start).dailyVerticalVideosUsageMillis)
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(FACEBOOK_PACKAGE_NAME))
+        assertFalse(repository.getMonitoringScope().masksFeedVideos(FACEBOOK_PACKAGE_NAME))
+        repository.setFacebookReelsEnabled(false)
+        assertFalse(repository.getMonitoringScope().monitors(FACEBOOK_PACKAGE_NAME))
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(X_PACKAGE_NAME))
+        assertFalse(MoreFocusPreferences(context).getBlockSettings().facebookReelsEnabled)
     }
 
     @Test

@@ -86,6 +86,8 @@ class MoreFocusViewModelTest {
         assertFalse(viewModel.uiState.value.showUsageNotification)
         viewModel.setYouTubeShortsEnabled(false)
         viewModel.setXVideosEnabled(false)
+        viewModel.setFacebookReelsEnabled(false)
+        viewModel.setTikTokForYouEnabled(false)
         viewModel.setExponentialPauseLockEnabled(false)
 
         assertFalse(settingsRepository.getSettings().focusEnabled)
@@ -96,6 +98,8 @@ class MoreFocusViewModelTest {
         assertFalse(viewModel.uiState.value.instagramReelsEnabled)
         assertFalse(viewModel.uiState.value.youtubeShortsEnabled)
         assertFalse(viewModel.uiState.value.xVideosEnabled)
+        assertFalse(viewModel.uiState.value.facebookReelsEnabled)
+        assertFalse(viewModel.uiState.value.tikTokForYouEnabled)
         assertFalse(viewModel.uiState.value.exponentialPauseLockEnabled)
     }
 
@@ -217,6 +221,8 @@ class MoreFocusViewModelTest {
                 hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
                 xVideosEnabled = settings.xVideosEnabled,
+                facebookReelsEnabled = settings.facebookReelsEnabled,
+                tikTokForYouEnabled = settings.tikTokForYouEnabled,
                 dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
                 dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
                 appLimitRules = settings.appLimitRules
@@ -250,8 +256,16 @@ class MoreFocusViewModelTest {
             settings = settings.copy(youtubeShortsEnabled = enabled)
         }
 
+        override fun setTikTokForYouEnabled(enabled: Boolean) {
+            settings = settings.copy(tikTokForYouEnabled = enabled)
+        }
+
         override fun setXVideosEnabled(enabled: Boolean) {
             settings = settings.copy(xVideosEnabled = enabled)
+        }
+
+        override fun setFacebookReelsEnabled(enabled: Boolean) {
+            settings = settings.copy(facebookReelsEnabled = enabled)
         }
 
         override fun setExponentialPauseLockEnabled(enabled: Boolean) {

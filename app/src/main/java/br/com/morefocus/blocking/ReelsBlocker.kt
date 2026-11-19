@@ -5,6 +5,7 @@ private const val MILLIS_PER_SECOND = 1000L
 internal const val INSTAGRAM_PACKAGE_NAME = "com.instagram.android"
 internal const val YOUTUBE_PACKAGE_NAME = "com.google.android.youtube"
 internal const val X_PACKAGE_NAME = "com.twitter.android"
+internal const val FACEBOOK_PACKAGE_NAME = "com.facebook.katana"
 // X exposes this Compose tag throughout the swipeable viewer, including between videos.
 internal const val X_VIDEO_VIEWER_ID = "VideoTab"
 
@@ -17,7 +18,9 @@ data class BlockSettings(
     val dailyVerticalVideosUsageMillis: Long = 0L,
     val appLimitRules: List<AppLimitRule> = emptyList(),
     val hardBlockVerticalVideos: Boolean = false,
-    val xVideosEnabled: Boolean = true
+    val xVideosEnabled: Boolean = true,
+    val tikTokForYouEnabled: Boolean = true,
+    val facebookReelsEnabled: Boolean = true
 ) {
     val dailyVerticalVideosLimitMillis: Long
         get() = dailyVerticalVideosLimitSeconds.coerceAtLeast(1) * MILLIS_PER_SECOND
@@ -43,7 +46,9 @@ data class BlockSettings(
 data class ScreenSnapshot(
     val packageName: String?,
     val className: String?,
-    val resourceIds: Set<String> = emptySet()
+    val resourceIds: Set<String> = emptySet(),
+    val selectedTikTokTab: String? = null,
+    val facebookReelsViewer: Boolean = false
 )
 
 data class MonitoringScope(
@@ -53,7 +58,9 @@ data class MonitoringScope(
     val limitedPackages: Set<String>,
     val hideFeedReels: Boolean = false,
     val hideFeedShorts: Boolean = false,
-    val xVideosEnabled: Boolean = true
+    val xVideosEnabled: Boolean = true,
+    val tikTokForYouEnabled: Boolean = true,
+    val facebookReelsEnabled: Boolean = true
 ) {
     fun monitors(packageName: String?): Boolean =
         monitorsAppLimit(packageName) || monitorsVerticalVideos(packageName)
@@ -72,7 +79,9 @@ data class MonitoringScope(
         focusEnabled && (
             (instagramReelsEnabled && packageName == INSTAGRAM_PACKAGE_NAME) ||
                 (youtubeShortsEnabled && packageName == YOUTUBE_PACKAGE_NAME) ||
-                (xVideosEnabled && packageName == X_PACKAGE_NAME)
+                (xVideosEnabled && packageName == X_PACKAGE_NAME) ||
+                (tikTokForYouEnabled && packageName == TIKTOK_PACKAGE_NAME) ||
+                (facebookReelsEnabled && packageName == FACEBOOK_PACKAGE_NAME)
         )
 }
 
@@ -95,7 +104,9 @@ class BlockDecisionEngine(
     ): Boolean =
         (settings.instagramReelsEnabled && reelsDetector.isInstagramReels(screen)) ||
             (settings.youtubeShortsEnabled && shortsBlocker.isYouTubeShorts(screen)) ||
-            (settings.xVideosEnabled && screen.packageName == X_PACKAGE_NAME && X_VIDEO_VIEWER_ID in screen.resourceIds)
+            (settings.xVideosEnabled && screen.packageName == X_PACKAGE_NAME && X_VIDEO_VIEWER_ID in screen.resourceIds) ||
+            (settings.tikTokForYouEnabled && screen.isTikTokForYou()) ||
+            (settings.facebookReelsEnabled && screen.packageName == FACEBOOK_PACKAGE_NAME && screen.facebookReelsViewer)
 
     fun verticalVideoAction(
         settings: BlockSettings,

@@ -61,7 +61,8 @@ private fun SharedUsageCard(uiState: MoreFocusUiState) {
     val limit = uiState.dailyVerticalVideosLimitSeconds * 1000L
     val remaining = (limit - used).coerceAtLeast(0L)
     val caption = when {
-        !uiState.instagramReelsEnabled && !uiState.youtubeShortsEnabled && !uiState.xVideosEnabled -> R.string.usage_rule_disabled
+        !uiState.instagramReelsEnabled && !uiState.youtubeShortsEnabled &&
+            !uiState.xVideosEnabled && !uiState.tikTokForYouEnabled && !uiState.facebookReelsEnabled -> R.string.usage_rule_disabled
         used >= limit -> R.string.usage_limit_reached
         else -> R.string.usage_remaining_today
     }

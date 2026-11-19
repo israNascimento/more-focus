@@ -28,15 +28,19 @@ import br.com.morefocus.blocking.BlockDecisionEngine
 import br.com.morefocus.blocking.BlockSettings
 import br.com.morefocus.blocking.DailyUsageClock
 import br.com.morefocus.blocking.DailyUsageState
+import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.blocking.ReelsDetector
 import br.com.morefocus.blocking.ScreenSnapshot
 import br.com.morefocus.blocking.ShortsBlocker
+import br.com.morefocus.blocking.TIKTOK_FEED_PAGE_ID
+import br.com.morefocus.blocking.TIKTOK_PACKAGE_NAME
 import br.com.morefocus.blocking.VerticalVideoAction
 import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.X_VIDEO_VIEWER_ID
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
+import br.com.morefocus.blocking.isTikTokForYou
 import br.com.morefocus.data.MoreFocusSettingsRepository
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
@@ -106,7 +110,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             val message = overlayMessage ?: return
             if (message.pauseExtensionTarget != PauseExtensionTarget.VerticalVideos) return
             val viewerPackage = message.verticalVideosPackageNameToTrackOnPause
-            if (viewerPackage != INSTAGRAM_PACKAGE_NAME && viewerPackage != X_PACKAGE_NAME) return
+            if (viewerPackage != INSTAGRAM_PACKAGE_NAME && viewerPackage != X_PACKAGE_NAME &&
+                viewerPackage != TIKTOK_PACKAGE_NAME && viewerPackage != FACEBOOK_PACKAGE_NAME
+            ) return
 
             // The touchable dialog can be the active accessibility window. Inspect the app below it.
             val appRoot = windows.firstOrNull {
@@ -115,6 +121,8 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             if (appRoot.packageName == viewerPackage) {
                 val stillWatching = when (viewerPackage) {
                     X_PACKAGE_NAME -> xVideoScreenIds(appRoot).isNotEmpty()
+                    FACEBOOK_PACKAGE_NAME -> hasFacebookReelsViewer(appRoot)
+                    TIKTOK_PACKAGE_NAME -> videoScreen(appRoot, null).isTikTokForYou()
                     else -> visibleResourceId(appRoot, reelsDetector.homeFeedResourceIds) == null
                 }
                 if (stillWatching) return
@@ -236,7 +244,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
             finishTracking(nowMillis)
             val uptime = SystemClock.uptimeMillis()
             if (uptime >= nextVideoBackAtUptime) {
-                performGlobalAction(GLOBAL_ACTION_BACK)
+                exitVideoViewer(packageName, activeRoot())
                 nextVideoBackAtUptime = uptime + VIDEO_BACK_RETRY_MILLIS
             }
             // Recheck the foreground after navigation before issuing another Back.
@@ -304,6 +312,15 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     private fun videoScreen(root: AccessibilityNodeInfo, eventClass: String?): ScreenSnapshot {
         val packageName = root.packageName?.toString()
         val className = eventClass ?: root.className?.toString()
+        if (packageName == FACEBOOK_PACKAGE_NAME) {
+            return ScreenSnapshot(packageName, className, facebookReelsViewer = hasFacebookReelsViewer(root))
+        }
+        if (packageName == TIKTOK_PACKAGE_NAME) {
+            val tab = root.findAccessibilityNodeInfosByViewId("android:id/text1")
+                .firstOrNull { it.isSelected && it.isVisibleToUser }?.text?.toString()
+            val page = tab?.let { visibleResourceId(root, setOf(TIKTOK_FEED_PAGE_ID)) }
+            return ScreenSnapshot(packageName, className, setOfNotNull(page), selectedTikTokTab = tab)
+        }
         val ids = when (packageName) {
             INSTAGRAM_PACKAGE_NAME -> {
                 val homeMarker = visibleResourceId(root, reelsDetector.homeFeedResourceIds)
@@ -329,6 +346,16 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         return AccessibilityNodeScanner.resourceEntryNames(
             content, setOf(X_VIDEO_VIEWER_ID), visibleOnly = true, hasConclusiveMatch = { it.isNotEmpty() }
         )
+    }
+
+    private fun exitVideoViewer(viewerPackage: String?, root: AccessibilityNodeInfo?) {
+        // Back from TikTok's home feed can leave the app before the user can reach other tabs.
+        if (viewerPackage == TIKTOK_PACKAGE_NAME && root?.packageName == TIKTOK_PACKAGE_NAME) {
+            val profile = root.findAccessibilityNodeInfosByViewId("$TIKTOK_PACKAGE_NAME:id/oph")
+                .firstOrNull { it.isVisibleToUser && it.contentDescription in listOf("Perfil", "Profile") }
+            if (profile?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) return
+        }
+        performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
     override fun onInterrupt() {
@@ -424,7 +451,16 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
                         },
                         onExitClick = {
                             stopTracking(System.currentTimeMillis())
-                            performGlobalAction(GLOBAL_ACTION_BACK)
+                            if (message.pauseExtensionTarget == PauseExtensionTarget.VerticalVideos &&
+                                message.verticalVideosPackageNameToTrackOnPause == TIKTOK_PACKAGE_NAME
+                            ) {
+                                val root = windows.firstOrNull {
+                                    it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
+                                }?.root
+                                exitVideoViewer(TIKTOK_PACKAGE_NAME, root)
+                            } else {
+                                performGlobalAction(GLOBAL_ACTION_BACK)
+                            }
                             hideOverlay()
                         }
                     )

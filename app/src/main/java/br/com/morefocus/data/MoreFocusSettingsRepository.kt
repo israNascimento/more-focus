@@ -18,7 +18,9 @@ data class MoreFocusSettings(
     val hideFeedShorts: Boolean = false,
     val showUsageNotification: Boolean = true,
     val hardBlockVerticalVideos: Boolean = false,
-    val xVideosEnabled: Boolean = true
+    val xVideosEnabled: Boolean = true,
+    val tikTokForYouEnabled: Boolean = true,
+    val facebookReelsEnabled: Boolean = true
 )
 
 interface MoreFocusSettingsRepository {
@@ -49,6 +51,8 @@ interface MoreFocusSettingsRepository {
             instagramReelsEnabled = settings.instagramReelsEnabled,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             xVideosEnabled = settings.xVideosEnabled,
+            facebookReelsEnabled = settings.facebookReelsEnabled,
+            tikTokForYouEnabled = settings.tikTokForYouEnabled,
             hideFeedReels = settings.hideFeedReels,
             hideFeedShorts = settings.hideFeedShorts,
             limitedPackages = settings.appLimitRules
@@ -72,6 +76,10 @@ interface MoreFocusSettingsRepository {
     fun setYouTubeShortsEnabled(enabled: Boolean)
 
     fun setXVideosEnabled(enabled: Boolean)
+
+    fun setFacebookReelsEnabled(enabled: Boolean)
+
+    fun setTikTokForYouEnabled(enabled: Boolean)
 
     fun setExponentialPauseLockEnabled(enabled: Boolean)
 
@@ -126,6 +134,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
             instagramReelsEnabled = preferences.isInstagramReelsEnabled(),
             youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
             xVideosEnabled = preferences.isXVideosEnabled(),
+            facebookReelsEnabled = preferences.isFacebookReelsEnabled(),
+            tikTokForYouEnabled = preferences.isTikTokForYouEnabled(),
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules(),
@@ -177,8 +187,18 @@ class SharedPreferencesMoreFocusSettingsRepository(
         invalidateMonitoringScope()
     }
 
+    override fun setTikTokForYouEnabled(enabled: Boolean) {
+        preferences.setTikTokForYouEnabled(enabled)
+        invalidateMonitoringScope()
+    }
+
     override fun setXVideosEnabled(enabled: Boolean) {
         preferences.setXVideosEnabled(enabled)
+        invalidateMonitoringScope()
+    }
+
+    override fun setFacebookReelsEnabled(enabled: Boolean) {
+        preferences.setFacebookReelsEnabled(enabled)
         invalidateMonitoringScope()
     }
 

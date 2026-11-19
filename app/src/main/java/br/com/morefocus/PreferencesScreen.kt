@@ -52,7 +52,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.TIKTOK_PACKAGE_NAME
 import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
 import br.com.morefocus.ui.MoreFocusUiState
@@ -76,6 +78,14 @@ internal enum class FeaturedApp(
     X(
         "x", X_PACKAGE_NAME, R.string.x_name,
         R.string.x_videos_title, R.string.x_videos_title, R.drawable.ic_x
+    ),
+    TikTok(
+        "tiktok", TIKTOK_PACKAGE_NAME, R.string.tiktok_name,
+        R.string.tiktok_for_you_title, R.string.tiktok_for_you_title, R.drawable.ic_tiktok
+    ),
+    Facebook(
+        "facebook", FACEBOOK_PACKAGE_NAME, R.string.facebook_name,
+        R.string.reels_title, R.string.reels_title, R.drawable.ic_facebook
     )
 }
 
@@ -306,7 +316,7 @@ internal fun InstagramPreferences(
     onReels: (Boolean) -> Unit,
     onHide: (Boolean) -> Unit
 ) {
-    ToggleRow(stringResource(R.string.preference_instagram_reels_enabled_title), uiState.instagramReelsEnabled,
+    ToggleRow(stringResource(R.string.preference_reels_enabled_title), uiState.instagramReelsEnabled,
         onReels, stringResource(R.string.shared_limit_note))
     HorizontalDivider()
     ToggleRow(stringResource(R.string.preference_hide_feed_reels_title), uiState.hideFeedReels,

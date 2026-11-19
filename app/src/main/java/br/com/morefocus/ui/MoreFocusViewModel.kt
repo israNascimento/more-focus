@@ -20,6 +20,8 @@ data class MoreFocusUiState(
     val hardBlockVerticalVideos: Boolean = false,
     val youtubeShortsEnabled: Boolean = true,
     val xVideosEnabled: Boolean = true,
+    val facebookReelsEnabled: Boolean = true,
+    val tikTokForYouEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
     val dailyVerticalVideosUsageMillis: Long = 0L,
@@ -76,8 +78,18 @@ class MoreFocusViewModel(
         refresh()
     }
 
+    fun setTikTokForYouEnabled(enabled: Boolean) {
+        settingsRepository.setTikTokForYouEnabled(enabled)
+        refresh()
+    }
+
     fun setXVideosEnabled(enabled: Boolean) {
         settingsRepository.setXVideosEnabled(enabled)
+        refresh()
+    }
+
+    fun setFacebookReelsEnabled(enabled: Boolean) {
+        settingsRepository.setFacebookReelsEnabled(enabled)
         refresh()
     }
 
@@ -130,6 +142,8 @@ class MoreFocusViewModel(
             hardBlockVerticalVideos = settings.hardBlockVerticalVideos,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             xVideosEnabled = settings.xVideosEnabled,
+            facebookReelsEnabled = settings.facebookReelsEnabled,
+            tikTokForYouEnabled = settings.tikTokForYouEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
             dailyVerticalVideosUsageMillis = blockSettings.dailyVerticalVideosUsageMillis,

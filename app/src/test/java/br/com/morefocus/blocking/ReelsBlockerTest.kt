@@ -24,7 +24,8 @@ class ReelsBlockerTest {
     @Test
     fun exhaustedEnabledViewersGoBackInHardModeAndShowTheWarningInNormalMode() {
         val xViewer = ScreenSnapshot(X_PACKAGE_NAME, "com.x.android.main.MainActivity", setOf("VideoTab"))
-        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen(), xViewer)) {
+        val facebookViewer = ScreenSnapshot(FACEBOOK_PACKAGE_NAME, null, facebookReelsViewer = true)
+        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen(), xViewer, facebookViewer)) {
             fun action(settings: BlockSettings) = engine.verticalVideoAction(
                 settings, engine.isEnabledVerticalVideo(settings, screen), nowMillis = 1_000L
             )
@@ -36,6 +37,17 @@ class ReelsBlockerTest {
             assertEquals(VerticalVideoAction.SHOW_WARNING, action(settingsAtLimit()))
             assertEquals(VerticalVideoAction.NONE, action(settingsAtLimit().copy(pauseUntilMillis = 2_000L)))
         }
+    }
+
+    @Test
+    fun facebookOnlyCountsAnOpenViewerWithTheRuleEnabled() {
+        val settings = settingsAtLimit()
+        val feed = ScreenSnapshot(FACEBOOK_PACKAGE_NAME, "com.facebook.katana.activity.FbMainTabActivity")
+        val viewer = feed.copy(facebookReelsViewer = true)
+        assertFalse(engine.shouldBlock(settings, feed, 1_000L))
+        assertTrue(engine.shouldBlock(settings, viewer, 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(facebookReelsEnabled = false), viewer, 1_000L))
+        assertFalse(engine.shouldBlock(settings, viewer.copy(packageName = "com.other"), 1_000L))
     }
 
     @Test

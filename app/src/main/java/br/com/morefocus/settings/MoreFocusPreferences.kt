@@ -26,6 +26,8 @@ class MoreFocusPreferences(context: Context) {
                 KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED,
                 KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED,
                 KEY_X_VIDEOS_ENABLED,
+                KEY_FACEBOOK_REELS_ENABLED,
+                KEY_TIKTOK_FOR_YOU_ENABLED,
                 KEY_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
                 KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY,
                 KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS -> onChanged()
@@ -42,6 +44,8 @@ class MoreFocusPreferences(context: Context) {
             instagramReelsEnabled = isInstagramReelsEnabled(),
             youtubeShortsEnabled = isYouTubeShortsEnabled(),
             xVideosEnabled = isXVideosEnabled(),
+            facebookReelsEnabled = isFacebookReelsEnabled(),
+            tikTokForYouEnabled = isTikTokForYouEnabled(),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -65,6 +69,8 @@ class MoreFocusPreferences(context: Context) {
             instagramReelsEnabled = isInstagramReelsEnabled(),
             youtubeShortsEnabled = isYouTubeShortsEnabled(),
             xVideosEnabled = isXVideosEnabled(),
+            facebookReelsEnabled = isFacebookReelsEnabled(),
+            tikTokForYouEnabled = isTikTokForYouEnabled(),
             pauseUntilMillis = preferences.getLong(KEY_PAUSE_UNTIL_MILLIS, 0L),
             dailyVerticalVideosLimitSeconds = dailyVerticalVideosLimitSeconds(),
             dailyVerticalVideosUsageMillis = dailyUsageState.usedMillis,
@@ -79,6 +85,8 @@ class MoreFocusPreferences(context: Context) {
             instagramReelsEnabled = isInstagramReelsEnabled(),
             youtubeShortsEnabled = isYouTubeShortsEnabled(),
             xVideosEnabled = isXVideosEnabled(),
+            facebookReelsEnabled = isFacebookReelsEnabled(),
+            tikTokForYouEnabled = isTikTokForYouEnabled(),
             hideFeedReels = hideFeedReels(),
             hideFeedShorts = hideFeedShorts(),
             limitedPackages = appLimitPackages().filterTo(mutableSetOf()) { packageName ->
@@ -135,10 +143,22 @@ class MoreFocusPreferences(context: Context) {
         }
     }
 
+    fun isTikTokForYouEnabled(): Boolean = preferences.getBoolean(KEY_TIKTOK_FOR_YOU_ENABLED, true)
+
+    fun setTikTokForYouEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_TIKTOK_FOR_YOU_ENABLED, enabled) }
+    }
+
     fun isXVideosEnabled(): Boolean = preferences.getBoolean(KEY_X_VIDEOS_ENABLED, true)
 
     fun setXVideosEnabled(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_X_VIDEOS_ENABLED, enabled) }
+    }
+
+    fun isFacebookReelsEnabled(): Boolean = preferences.getBoolean(KEY_FACEBOOK_REELS_ENABLED, true)
+
+    fun setFacebookReelsEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_FACEBOOK_REELS_ENABLED, enabled) }
     }
 
     fun isExponentialPauseLockEnabled(): Boolean =
@@ -436,7 +456,9 @@ class MoreFocusPreferences(context: Context) {
         private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"
         private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"
         private const val KEY_HIDE_FEED_SHORTS = "hide_feed_shorts"
+        private const val KEY_TIKTOK_FOR_YOU_ENABLED = "tiktok_for_you_enabled"
         private const val KEY_X_VIDEOS_ENABLED = "vertical_videos_x_enabled"
+        private const val KEY_FACEBOOK_REELS_ENABLED = "vertical_videos_facebook_enabled"
         // Keep the original key so upgrades retain the user's choice.
         private const val KEY_HARD_BLOCK_VERTICAL_VIDEOS = "hard_block_reels"
         private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =

@@ -143,6 +143,8 @@ private fun MoreFocusApp(
         onHardBlockVerticalVideosChange = viewModel::setHardBlockVerticalVideos,
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
         onXVideosEnabledChange = viewModel::setXVideosEnabled,
+        onFacebookReelsEnabledChange = viewModel::setFacebookReelsEnabled,
+        onTikTokForYouEnabledChange = viewModel::setTikTokForYouEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
         onDailyVerticalVideosLimitSecondsChange =
             viewModel::setDailyVerticalVideosLimitSeconds,
@@ -174,6 +176,8 @@ internal fun MoreFocusScreen(
     onHardBlockVerticalVideosChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onXVideosEnabledChange: (Boolean) -> Unit,
+    onFacebookReelsEnabledChange: (Boolean) -> Unit,
+    onTikTokForYouEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
     onAddAppLimit: (String, Int) -> Unit,
@@ -251,6 +255,14 @@ internal fun MoreFocusScreen(
                             )
                             FeaturedApp.YouTube -> YouTubePreferences(
                                 uiState, onYouTubeShortsEnabledChange, onHideFeedShortsChange
+                            )
+                            FeaturedApp.TikTok -> ToggleRow(
+                                stringResource(R.string.preference_tiktok_for_you_enabled_title), uiState.tikTokForYouEnabled,
+                                onTikTokForYouEnabledChange, stringResource(R.string.preference_tiktok_for_you_description)
+                            )
+                            FeaturedApp.Facebook -> ToggleRow(
+                                stringResource(R.string.preference_reels_enabled_title), uiState.facebookReelsEnabled,
+                                onFacebookReelsEnabledChange, stringResource(R.string.preference_facebook_reels_description)
                             )
                             FeaturedApp.X -> ToggleRow(
                                 stringResource(R.string.preference_x_videos_enabled_title), uiState.xVideosEnabled,
@@ -592,7 +604,7 @@ private fun MoreFocusScreenPreview() {
                     )
                 ),
                 selectableApps = listOf(
-                    SelectableApp("com.tiktok", "TikTok"),
+                    SelectableApp(FeaturedApp.TikTok.packageName, "TikTok"),
                     SelectableApp(FeaturedApp.YouTube.packageName, "YouTube")
                 ),
                 appLimitSecondOptions = listOf(
@@ -612,6 +624,8 @@ private fun MoreFocusScreenPreview() {
             onHardBlockVerticalVideosChange = {},
             onYouTubeShortsEnabledChange = {},
             onXVideosEnabledChange = {},
+            onFacebookReelsEnabledChange = {},
+            onTikTokForYouEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
             onDailyVerticalVideosLimitSecondsChange = {},
             onAddAppLimit = { _, _ -> },
