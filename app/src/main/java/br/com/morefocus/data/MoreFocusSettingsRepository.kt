@@ -20,7 +20,8 @@ data class MoreFocusSettings(
     val hardBlockVerticalVideos: Boolean = false,
     val xVideosEnabled: Boolean = true,
     val tikTokForYouEnabled: Boolean = true,
-    val facebookReelsEnabled: Boolean = true
+    val facebookReelsEnabled: Boolean = true,
+    val kwaiFeedEnabled: Boolean = true
 )
 
 interface MoreFocusSettingsRepository {
@@ -52,6 +53,7 @@ interface MoreFocusSettingsRepository {
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             xVideosEnabled = settings.xVideosEnabled,
             facebookReelsEnabled = settings.facebookReelsEnabled,
+            kwaiFeedEnabled = settings.kwaiFeedEnabled,
             tikTokForYouEnabled = settings.tikTokForYouEnabled,
             hideFeedReels = settings.hideFeedReels,
             hideFeedShorts = settings.hideFeedShorts,
@@ -78,6 +80,8 @@ interface MoreFocusSettingsRepository {
     fun setXVideosEnabled(enabled: Boolean)
 
     fun setFacebookReelsEnabled(enabled: Boolean)
+
+    fun setKwaiFeedEnabled(enabled: Boolean)
 
     fun setTikTokForYouEnabled(enabled: Boolean)
 
@@ -135,6 +139,7 @@ class SharedPreferencesMoreFocusSettingsRepository(
             youtubeShortsEnabled = preferences.isYouTubeShortsEnabled(),
             xVideosEnabled = preferences.isXVideosEnabled(),
             facebookReelsEnabled = preferences.isFacebookReelsEnabled(),
+            kwaiFeedEnabled = preferences.isKwaiFeedEnabled(),
             tikTokForYouEnabled = preferences.isTikTokForYouEnabled(),
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
@@ -199,6 +204,11 @@ class SharedPreferencesMoreFocusSettingsRepository(
 
     override fun setFacebookReelsEnabled(enabled: Boolean) {
         preferences.setFacebookReelsEnabled(enabled)
+        invalidateMonitoringScope()
+    }
+
+    override fun setKwaiFeedEnabled(enabled: Boolean) {
+        preferences.setKwaiFeedEnabled(enabled)
         invalidateMonitoringScope()
     }
 

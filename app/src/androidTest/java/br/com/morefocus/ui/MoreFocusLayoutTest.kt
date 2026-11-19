@@ -79,6 +79,9 @@ class MoreFocusLayoutTest {
         compose.onNodeWithText("Facebook").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Limitar Reels").assertIsOn().performClick().assertIsOff()
         backToPreferences()
+        compose.onNodeWithText("Kwai").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Limitar feed de vídeos").assertIsOn().performClick().assertIsOff()
+        backToPreferences()
         compose.onNodeWithText("Limite compartilhado").performScrollTo().performClick()
         tap("10 min")
         tap("Uso")
@@ -129,6 +132,7 @@ class MoreFocusLayoutTest {
                     onYouTubeShortsEnabledChange = { state = state.copy(youtubeShortsEnabled = it) },
                     onXVideosEnabledChange = { state = state.copy(xVideosEnabled = it) },
                     onFacebookReelsEnabledChange = { state = state.copy(facebookReelsEnabled = it) },
+                    onKwaiFeedEnabledChange = { state = state.copy(kwaiFeedEnabled = it) },
                     onTikTokForYouEnabledChange = { state = state.copy(tikTokForYouEnabled = it) },
                     onExponentialPauseLockEnabledChange = {},
                     onDailyVerticalVideosLimitSecondsChange = { state = state.copy(dailyVerticalVideosLimitSeconds = it) },

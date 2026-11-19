@@ -25,7 +25,8 @@ class ReelsBlockerTest {
     fun exhaustedEnabledViewersGoBackInHardModeAndShowTheWarningInNormalMode() {
         val xViewer = ScreenSnapshot(X_PACKAGE_NAME, "com.x.android.main.MainActivity", setOf("VideoTab"))
         val facebookViewer = ScreenSnapshot(FACEBOOK_PACKAGE_NAME, null, facebookReelsViewer = true)
-        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen(), xViewer, facebookViewer)) {
+        val kwaiFeed = ScreenSnapshot(KWAI_PACKAGE_NAME, null, kwaiHomeFeed = true)
+        for (screen in listOf(explicitReelsScreen(), youtubeShortsScreen(), xViewer, facebookViewer, kwaiFeed)) {
             fun action(settings: BlockSettings) = engine.verticalVideoAction(
                 settings, engine.isEnabledVerticalVideo(settings, screen), nowMillis = 1_000L
             )
@@ -37,6 +38,15 @@ class ReelsBlockerTest {
             assertEquals(VerticalVideoAction.SHOW_WARNING, action(settingsAtLimit()))
             assertEquals(VerticalVideoAction.NONE, action(settingsAtLimit().copy(pauseUntilMillis = 2_000L)))
         }
+    }
+
+    @Test
+    fun kwaiLeavesOtherTabsFreeAndHonorsItsOwnRule() {
+        val settings = settingsAtLimit()
+        val feed = ScreenSnapshot(KWAI_PACKAGE_NAME, null, kwaiHomeFeed = true)
+        assertFalse(engine.shouldBlock(settings, feed.copy(kwaiHomeFeed = false), 1_000L))
+        assertFalse(engine.shouldBlock(settings.copy(kwaiFeedEnabled = false), feed, 1_000L))
+        assertFalse(engine.shouldBlock(settings, feed.copy(packageName = "com.other"), 1_000L))
     }
 
     @Test

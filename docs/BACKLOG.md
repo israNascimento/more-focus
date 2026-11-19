@@ -1,6 +1,6 @@
 # Backlog do MoreFocus
 
-Hoje, Reels do Instagram e do Facebook, Shorts, vídeos em tela cheia do X e o feed Para Você do TikTok compartilham um limite diário. O MoreFocus também permite limitar o uso de um aplicativo inteiro. Os itens abaixo estão em ordem de prioridade proposta para as próximas versões.
+Hoje, Reels do Instagram e do Facebook, Shorts, vídeos em tela cheia do X, o feed Para Você do TikTok e o feed de vídeos do Kwai compartilham um limite diário. O MoreFocus também permite limitar o uso de um aplicativo inteiro. Os itens abaixo estão em ordem de prioridade proposta para as próximas versões.
 
 ## 1. Iniciar uma sessão de foco de 30 minutos
 
@@ -49,7 +49,7 @@ A primeira integração desta lista é o feed **Para Você** do TikTok. O limite
 - [x] **TikTok.** No Galaxy S21 FE com TikTok 47.7.3, o MoreFocus identifica a aba Para Você selecionada junto ao player. A contagem para ao abrir Mensagens ou Perfil. A aba Seguindo também fica livre.
 - [x] **Integração do TikTok.** A regra do Para Você pode ser ativada nas Preferências. Com um limite de 15 minutos, assistir a 6 minutos de Reels, 4 de Shorts e 5 de TikTok deve acionar o mesmo aviso de limite atingido.
 - [x] **Facebook Reels.** No Facebook 588.0.0.42.55, a regra reconhece a página de reprodução do Reel aberto em tela cheia. Prévias no feed e a navegação em Grupos e Marketplace ficam fora do limite compartilhado.
-- [ ] **Kwai.** Testar se é possível distinguir o feed de vídeos das demais telas antes de liberar a integração.
+- [x] **Kwai.** No Galaxy S21 FE com Kwai 13.10.20.647201, a regra reconhece o player de rolagem da aba Início (Para você e Seguindo). Mensagens, Perfil e Descobrir ficam fora do limite compartilhado.
 - [ ] A cada integração entregue, atualizar os nomes exibidos nas preferências, no resumo de uso e na explicação de acessibilidade para refletir quais aplicativos o MoreFocus reconhece.
 
 Para validar os fluxos que dependem de outros aplicativos, usar o aparelho Android físico conectado ao projeto.

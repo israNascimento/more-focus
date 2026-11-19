@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.KWAI_PACKAGE_NAME
 import br.com.morefocus.blocking.PauseExtensionTarget
 import br.com.morefocus.blocking.TIKTOK_PACKAGE_NAME
 import br.com.morefocus.blocking.X_PACKAGE_NAME
@@ -192,6 +193,19 @@ class MoreFocusPreferencesTest {
         assertFalse(repository.getMonitoringScope().monitors(FACEBOOK_PACKAGE_NAME))
         assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(X_PACKAGE_NAME))
         assertFalse(MoreFocusPreferences(context).getBlockSettings().facebookReelsEnabled)
+    }
+
+    @Test
+    fun kwaiUsesTheSharedBudgetAndItsOwnToggle() {
+        val repository = SharedPreferencesMoreFocusSettingsRepository(preferences)
+        val start = millis(year = 2026, month = 7, day = 8, hour = 10)
+        repository.recordDailyVerticalVideosUsage(start, start + 30_000L)
+        assertEquals(30_000L, repository.getBlockSettingsForPackage(KWAI_PACKAGE_NAME, start).dailyVerticalVideosUsageMillis)
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(KWAI_PACKAGE_NAME))
+        repository.setKwaiFeedEnabled(false)
+        assertFalse(repository.getMonitoringScope().monitorsVerticalVideos(KWAI_PACKAGE_NAME))
+        assertTrue(repository.getMonitoringScope().monitorsVerticalVideos(TIKTOK_PACKAGE_NAME))
+        assertFalse(MoreFocusPreferences(context).getBlockSettings().kwaiFeedEnabled)
     }
 
     @Test

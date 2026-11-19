@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.morefocus.blocking.FACEBOOK_PACKAGE_NAME
 import br.com.morefocus.blocking.INSTAGRAM_PACKAGE_NAME
+import br.com.morefocus.blocking.KWAI_PACKAGE_NAME
 import br.com.morefocus.blocking.TIKTOK_PACKAGE_NAME
 import br.com.morefocus.blocking.X_PACKAGE_NAME
 import br.com.morefocus.blocking.YOUTUBE_PACKAGE_NAME
@@ -86,6 +87,10 @@ internal enum class FeaturedApp(
     Facebook(
         "facebook", FACEBOOK_PACKAGE_NAME, R.string.facebook_name,
         R.string.reels_title, R.string.reels_title, R.drawable.ic_facebook
+    ),
+    Kwai(
+        "kwai", KWAI_PACKAGE_NAME, R.string.kwai_name,
+        R.string.kwai_feed_title, R.string.kwai_feed_title, R.drawable.ic_kwai
     )
 }
 

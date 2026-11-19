@@ -21,6 +21,7 @@ data class MoreFocusUiState(
     val youtubeShortsEnabled: Boolean = true,
     val xVideosEnabled: Boolean = true,
     val facebookReelsEnabled: Boolean = true,
+    val kwaiFeedEnabled: Boolean = true,
     val tikTokForYouEnabled: Boolean = true,
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int = 15 * 60,
@@ -93,6 +94,11 @@ class MoreFocusViewModel(
         refresh()
     }
 
+    fun setKwaiFeedEnabled(enabled: Boolean) {
+        settingsRepository.setKwaiFeedEnabled(enabled)
+        refresh()
+    }
+
     fun setExponentialPauseLockEnabled(enabled: Boolean) {
         settingsRepository.setExponentialPauseLockEnabled(enabled)
         refresh()
@@ -143,6 +149,7 @@ class MoreFocusViewModel(
             youtubeShortsEnabled = settings.youtubeShortsEnabled,
             xVideosEnabled = settings.xVideosEnabled,
             facebookReelsEnabled = settings.facebookReelsEnabled,
+            kwaiFeedEnabled = settings.kwaiFeedEnabled,
             tikTokForYouEnabled = settings.tikTokForYouEnabled,
             exponentialPauseLockEnabled = settings.exponentialPauseLockEnabled,
             dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,

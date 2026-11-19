@@ -144,6 +144,7 @@ private fun MoreFocusApp(
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
         onXVideosEnabledChange = viewModel::setXVideosEnabled,
         onFacebookReelsEnabledChange = viewModel::setFacebookReelsEnabled,
+        onKwaiFeedEnabledChange = viewModel::setKwaiFeedEnabled,
         onTikTokForYouEnabledChange = viewModel::setTikTokForYouEnabled,
         onExponentialPauseLockEnabledChange = viewModel::setExponentialPauseLockEnabled,
         onDailyVerticalVideosLimitSecondsChange =
@@ -177,6 +178,7 @@ internal fun MoreFocusScreen(
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
     onXVideosEnabledChange: (Boolean) -> Unit,
     onFacebookReelsEnabledChange: (Boolean) -> Unit,
+    onKwaiFeedEnabledChange: (Boolean) -> Unit,
     onTikTokForYouEnabledChange: (Boolean) -> Unit,
     onExponentialPauseLockEnabledChange: (Boolean) -> Unit,
     onDailyVerticalVideosLimitSecondsChange: (Int) -> Unit,
@@ -263,6 +265,10 @@ internal fun MoreFocusScreen(
                             FeaturedApp.Facebook -> ToggleRow(
                                 stringResource(R.string.preference_reels_enabled_title), uiState.facebookReelsEnabled,
                                 onFacebookReelsEnabledChange, stringResource(R.string.preference_facebook_reels_description)
+                            )
+                            FeaturedApp.Kwai -> ToggleRow(
+                                stringResource(R.string.preference_kwai_feed_enabled_title), uiState.kwaiFeedEnabled,
+                                onKwaiFeedEnabledChange, stringResource(R.string.preference_kwai_feed_description)
                             )
                             FeaturedApp.X -> ToggleRow(
                                 stringResource(R.string.preference_x_videos_enabled_title), uiState.xVideosEnabled,
@@ -625,6 +631,7 @@ private fun MoreFocusScreenPreview() {
             onYouTubeShortsEnabledChange = {},
             onXVideosEnabledChange = {},
             onFacebookReelsEnabledChange = {},
+            onKwaiFeedEnabledChange = {},
             onTikTokForYouEnabledChange = {},
             onExponentialPauseLockEnabledChange = {},
             onDailyVerticalVideosLimitSecondsChange = {},

@@ -87,6 +87,7 @@ class MoreFocusViewModelTest {
         viewModel.setYouTubeShortsEnabled(false)
         viewModel.setXVideosEnabled(false)
         viewModel.setFacebookReelsEnabled(false)
+        viewModel.setKwaiFeedEnabled(false)
         viewModel.setTikTokForYouEnabled(false)
         viewModel.setExponentialPauseLockEnabled(false)
 
@@ -99,6 +100,7 @@ class MoreFocusViewModelTest {
         assertFalse(viewModel.uiState.value.youtubeShortsEnabled)
         assertFalse(viewModel.uiState.value.xVideosEnabled)
         assertFalse(viewModel.uiState.value.facebookReelsEnabled)
+        assertFalse(viewModel.uiState.value.kwaiFeedEnabled)
         assertFalse(viewModel.uiState.value.tikTokForYouEnabled)
         assertFalse(viewModel.uiState.value.exponentialPauseLockEnabled)
     }
@@ -222,6 +224,7 @@ class MoreFocusViewModelTest {
                 youtubeShortsEnabled = settings.youtubeShortsEnabled,
                 xVideosEnabled = settings.xVideosEnabled,
                 facebookReelsEnabled = settings.facebookReelsEnabled,
+                kwaiFeedEnabled = settings.kwaiFeedEnabled,
                 tikTokForYouEnabled = settings.tikTokForYouEnabled,
                 dailyVerticalVideosLimitSeconds = settings.dailyVerticalVideosLimitSeconds,
                 dailyVerticalVideosUsageMillis = dailyVerticalVideosUsageMillis,
@@ -266,6 +269,10 @@ class MoreFocusViewModelTest {
 
         override fun setFacebookReelsEnabled(enabled: Boolean) {
             settings = settings.copy(facebookReelsEnabled = enabled)
+        }
+
+        override fun setKwaiFeedEnabled(enabled: Boolean) {
+            settings = settings.copy(kwaiFeedEnabled = enabled)
         }
 
         override fun setExponentialPauseLockEnabled(enabled: Boolean) {
