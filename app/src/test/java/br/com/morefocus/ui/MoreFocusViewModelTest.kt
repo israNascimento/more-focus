@@ -76,6 +76,8 @@ class MoreFocusViewModelTest {
         viewModel.setInstagramReelsEnabled(false)
         viewModel.setHideFeedReels(true)
         assertTrue(viewModel.uiState.value.hideFeedReels)
+        viewModel.setShowUsageNotification(false)
+        assertFalse(viewModel.uiState.value.showUsageNotification)
         viewModel.setYouTubeShortsEnabled(false)
         viewModel.setExponentialPauseLockEnabled(false)
 
@@ -220,6 +222,10 @@ class MoreFocusViewModelTest {
 
         override fun setHideFeedReels(enabled: Boolean) {
             settings = settings.copy(hideFeedReels = enabled)
+        }
+
+        override fun setShowUsageNotification(show: Boolean) {
+            settings = settings.copy(showUsageNotification = show)
         }
 
         override fun setYouTubeShortsEnabled(enabled: Boolean) {

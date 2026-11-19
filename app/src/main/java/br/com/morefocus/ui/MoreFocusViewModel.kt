@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class MoreFocusUiState(
     val serviceEnabled: Boolean = false,
     val focusEnabled: Boolean = true,
+    val showUsageNotification: Boolean = true,
     val instagramReelsEnabled: Boolean = true,
     val hideFeedReels: Boolean = false,
     val youtubeShortsEnabled: Boolean = true,
@@ -39,6 +40,11 @@ class MoreFocusViewModel(
 
     fun setFocusEnabled(enabled: Boolean) {
         settingsRepository.setFocusEnabled(enabled)
+        refresh()
+    }
+
+    fun setShowUsageNotification(show: Boolean) {
+        settingsRepository.setShowUsageNotification(show)
         refresh()
     }
 
@@ -99,6 +105,7 @@ class MoreFocusViewModel(
         return MoreFocusUiState(
             serviceEnabled = accessibilityServiceRepository.isMoreFocusAccessibilityServiceEnabled(),
             focusEnabled = settings.focusEnabled,
+            showUsageNotification = settings.showUsageNotification,
             instagramReelsEnabled = settings.instagramReelsEnabled,
             hideFeedReels = settings.hideFeedReels,
             youtubeShortsEnabled = settings.youtubeShortsEnabled,

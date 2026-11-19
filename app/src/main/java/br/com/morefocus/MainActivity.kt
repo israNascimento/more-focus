@@ -1,12 +1,16 @@
 package br.com.morefocus
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,10 +49,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -63,6 +70,14 @@ import br.com.morefocus.ui.MoreFocusViewModel
 import br.com.morefocus.ui.theme.MoreFocusTheme
 
 class MainActivity : ComponentActivity() {
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            (application as MoreFocusApplication).appContainer.dailyUsageNotification.refresh()
+        }
+    }
+
     private val viewModel: MoreFocusViewModel by lazy {
         ViewModelProvider(
             this,
@@ -78,6 +93,10 @@ class MainActivity : ComponentActivity() {
             MoreFocusTheme {
                 MoreFocusApp(
                     viewModel = viewModel,
+                    onShowUsageNotificationChange = { show ->
+                        viewModel.setShowUsageNotification(show)
+                        if (show) requestNotificationPermission(userInitiated = true)
+                    },
                     onOpenAccessibilitySettings = { openAccessibilitySettings() }
                 )
             }
@@ -87,12 +106,37 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refresh()
+        val state = viewModel.uiState.value
+        if (state.serviceEnabled && state.showUsageNotification) requestNotificationPermission()
+    }
+
+    private fun requestNotificationPermission(userInitiated: Boolean = false) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) return
+
+        val preferences = getPreferences(MODE_PRIVATE)
+        if (!preferences.getBoolean(NOTIFICATION_PERMISSION_REQUESTED, false) ||
+            (userInitiated && shouldShowRequestPermissionRationale(permission))
+        ) {
+            preferences.edit { putBoolean(NOTIFICATION_PERMISSION_REQUESTED, true) }
+            notificationPermission.launch(permission)
+        } else if (userInitiated) {
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            })
+        }
+    }
+
+    private companion object {
+        const val NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
     }
 }
 
 @Composable
 private fun MoreFocusApp(
     viewModel: MoreFocusViewModel,
+    onShowUsageNotificationChange: (Boolean) -> Unit,
     onOpenAccessibilitySettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -100,6 +144,7 @@ private fun MoreFocusApp(
     MoreFocusScreen(
         uiState = uiState,
         onFocusEnabledChange = viewModel::setFocusEnabled,
+        onShowUsageNotificationChange = onShowUsageNotificationChange,
         onInstagramReelsEnabledChange = viewModel::setInstagramReelsEnabled,
         onHideFeedReelsChange = viewModel::setHideFeedReels,
         onYouTubeShortsEnabledChange = viewModel::setYouTubeShortsEnabled,
@@ -126,6 +171,7 @@ private enum class MoreFocusDestination(
 private fun MoreFocusScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
+    onShowUsageNotificationChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
     onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
@@ -195,6 +241,7 @@ private fun MoreFocusScreen(
                         PreferencesScreen(
                             uiState = uiState,
                             onFocusEnabledChange = onFocusEnabledChange,
+                            onShowUsageNotificationChange = onShowUsageNotificationChange,
                             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
                             onHideFeedReelsChange = onHideFeedReelsChange,
                             onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
@@ -219,6 +266,7 @@ private fun MoreFocusScreen(
 private fun PreferencesScreen(
     uiState: MoreFocusUiState,
     onFocusEnabledChange: (Boolean) -> Unit,
+    onShowUsageNotificationChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
     onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
@@ -247,6 +295,7 @@ private fun PreferencesScreen(
 
         PreferenceCard(
             focusEnabled = uiState.focusEnabled,
+            showUsageNotification = uiState.showUsageNotification,
             instagramReelsEnabled = uiState.instagramReelsEnabled,
             hideFeedReels = uiState.hideFeedReels,
             youtubeShortsEnabled = uiState.youtubeShortsEnabled,
@@ -255,6 +304,7 @@ private fun PreferencesScreen(
             dailyVerticalVideosLimitSecondOptions =
                 uiState.dailyVerticalVideosLimitSecondOptions,
             onFocusEnabledChange = onFocusEnabledChange,
+            onShowUsageNotificationChange = onShowUsageNotificationChange,
             onInstagramReelsEnabledChange = onInstagramReelsEnabledChange,
             onHideFeedReelsChange = onHideFeedReelsChange,
             onYouTubeShortsEnabledChange = onYouTubeShortsEnabledChange,
@@ -495,6 +545,7 @@ private fun DisclosureCard() {
 @Composable
 private fun PreferenceCard(
     focusEnabled: Boolean,
+    showUsageNotification: Boolean,
     instagramReelsEnabled: Boolean,
     hideFeedReels: Boolean,
     youtubeShortsEnabled: Boolean,
@@ -502,6 +553,7 @@ private fun PreferenceCard(
     dailyVerticalVideosLimitSeconds: Int,
     dailyVerticalVideosLimitSecondOptions: List<Int>,
     onFocusEnabledChange: (Boolean) -> Unit,
+    onShowUsageNotificationChange: (Boolean) -> Unit,
     onInstagramReelsEnabledChange: (Boolean) -> Unit,
     onHideFeedReelsChange: (Boolean) -> Unit,
     onYouTubeShortsEnabledChange: (Boolean) -> Unit,
@@ -528,6 +580,12 @@ private fun PreferenceCard(
                 description = stringResource(R.string.preference_focus_enabled_description),
                 checked = focusEnabled,
                 onCheckedChange = onFocusEnabledChange
+            )
+            ToggleRow(
+                title = stringResource(R.string.preference_usage_notification_title),
+                description = stringResource(R.string.preference_usage_notification_description),
+                checked = showUsageNotification,
+                onCheckedChange = onShowUsageNotificationChange
             )
             ToggleRow(
                 title = stringResource(R.string.preference_exponential_pause_lock_title),
@@ -898,6 +956,7 @@ private fun ToggleRow(
             )
         }
         Switch(
+            modifier = Modifier.semantics { contentDescription = title },
             checked = checked,
             onCheckedChange = onCheckedChange
         )
@@ -983,6 +1042,7 @@ private fun MoreFocusScreenPreview() {
                 )
             ),
             onFocusEnabledChange = {},
+            onShowUsageNotificationChange = {},
             onInstagramReelsEnabledChange = {},
             onHideFeedReelsChange = {},
             onYouTubeShortsEnabledChange = {},

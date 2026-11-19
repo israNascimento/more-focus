@@ -14,7 +14,8 @@ data class MoreFocusSettings(
     val exponentialPauseLockEnabled: Boolean = true,
     val dailyVerticalVideosLimitSeconds: Int,
     val appLimitRules: List<AppLimitRule> = emptyList(),
-    val hideFeedReels: Boolean = false
+    val hideFeedReels: Boolean = false,
+    val showUsageNotification: Boolean = true
 )
 
 interface MoreFocusSettingsRepository {
@@ -52,6 +53,8 @@ interface MoreFocusSettingsRepository {
     }
 
     fun setFocusEnabled(enabled: Boolean)
+
+    fun setShowUsageNotification(show: Boolean)
 
     fun setInstagramReelsEnabled(enabled: Boolean)
 
@@ -114,7 +117,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
             exponentialPauseLockEnabled = preferences.isExponentialPauseLockEnabled(),
             dailyVerticalVideosLimitSeconds = preferences.dailyVerticalVideosLimitSeconds(),
             appLimitRules = preferences.appLimitRules(),
-            hideFeedReels = preferences.hideFeedReels()
+            hideFeedReels = preferences.hideFeedReels(),
+            showUsageNotification = preferences.showUsageNotification()
         )
 
     override fun getBlockSettings(nowMillis: Long): BlockSettings =
@@ -134,6 +138,8 @@ class SharedPreferencesMoreFocusSettingsRepository(
         preferences.setFocusEnabled(enabled)
         invalidateMonitoringScope()
     }
+
+    override fun setShowUsageNotification(show: Boolean) = preferences.setShowUsageNotification(show)
 
     override fun setInstagramReelsEnabled(enabled: Boolean) {
         preferences.setInstagramReelsEnabled(enabled)

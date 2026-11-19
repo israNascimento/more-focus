@@ -13,6 +13,9 @@
     <string name="usage_today_title">Uso de hoje</string>
     <string name="usage_today_description">Tempo contado localmente desde o início do dia.</string>
     <string name="usage_vertical_videos_title">Vídeos verticais</string>
+    <string name="usage_notification_channel">Uso diário de vídeos verticais</string>
+    <string name="usage_notification_remaining">%1$s disponíveis hoje</string>
+    <string name="usage_notification_used">Reels e Shorts · %1$s de uso total</string>
     <string name="usage_apps_title">Aplicativos</string>
     <string name="usage_apps_empty">Nenhum limite por aplicativo configurado.</string>
     <string name="usage_time">Usado hoje: %1$s de %2$s</string>
@@ -22,6 +25,8 @@
     <string name="accessibility_disclosure_description">O MoreFocus usa eventos de acessibilidade para identificar o aplicativo em primeiro plano e lê textos, descrições e identificadores das telas do Instagram e YouTube para detectar Reels e Shorts. Se você ativar a opção, ele também usa a posição dos Reels e do botão da aba Reels para cobrir os vídeos no feed e bloquear o toque nesse botão. Ele não captura imagens, não grava vídeos e não envia dados.</string>
     <string name="preferences_title">Preferências</string>
     <string name="preference_focus_enabled_title">MoreFocus ativo</string>
+    <string name="preference_usage_notification_title">Mostrar notificação de uso</string>
+    <string name="preference_usage_notification_description">Exibe o tempo disponível hoje e o uso total de Reels e Shorts.</string>
     <string name="preference_focus_enabled_description">Permite aplicar as regras selecionadas.</string>
     <string name="preference_instagram_reels_enabled_title">Limitar Instagram Reels</string>
     <string name="preference_instagram_reels_enabled_description">Conta o tempo de Reels no limite compartilhado de vídeos verticais.</string>

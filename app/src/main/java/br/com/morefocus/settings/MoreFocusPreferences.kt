@@ -1,6 +1,7 @@
 package br.com.morefocus.settings
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import br.com.morefocus.blocking.AppLimitRule
 import br.com.morefocus.blocking.BlockSettings
@@ -16,6 +17,22 @@ class MoreFocusPreferences(context: Context) {
         Context.MODE_PRIVATE
     )
     private val dailyUsageClock = DailyUsageClock()
+
+    fun observeDailyVideoUsage(onChanged: () -> Unit): () -> Unit {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                KEY_SHOW_USAGE_NOTIFICATION,
+                KEY_FOCUS_ENABLED,
+                KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED,
+                KEY_VERTICAL_VIDEOS_YOUTUBE_SHORTS_ENABLED,
+                KEY_DAILY_VERTICAL_VIDEOS_LIMIT_SECONDS,
+                KEY_DAILY_VERTICAL_VIDEOS_USAGE_DAY,
+                KEY_DAILY_VERTICAL_VIDEOS_USAGE_MILLIS -> onChanged()
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     fun getBlockSettings(nowMillis: Long = System.currentTimeMillis()): BlockSettings {
         val dailyUsageState = getDailyVerticalVideosUsageState(nowMillis)
@@ -64,6 +81,12 @@ class MoreFocusPreferences(context: Context) {
 
     fun isFocusEnabled(): Boolean =
         preferences.getBoolean(KEY_FOCUS_ENABLED, true)
+
+    fun showUsageNotification(): Boolean = preferences.getBoolean(KEY_SHOW_USAGE_NOTIFICATION, true)
+
+    fun setShowUsageNotification(show: Boolean) {
+        preferences.edit { putBoolean(KEY_SHOW_USAGE_NOTIFICATION, show) }
+    }
 
     fun setFocusEnabled(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_FOCUS_ENABLED, enabled) }
@@ -385,6 +408,7 @@ class MoreFocusPreferences(context: Context) {
 
         private const val PREFERENCES_NAME = "more_focus_preferences"
         private const val KEY_FOCUS_ENABLED = "focus_enabled"
+        private const val KEY_SHOW_USAGE_NOTIFICATION = "show_usage_notification"
         private const val KEY_HIDE_FEED_REELS = "hide_feed_reels"
         private const val KEY_VERTICAL_VIDEOS_INSTAGRAM_REELS_ENABLED =
             "vertical_videos_instagram_reels_enabled"

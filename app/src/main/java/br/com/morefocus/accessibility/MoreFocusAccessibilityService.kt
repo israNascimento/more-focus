@@ -86,9 +86,9 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        settingsRepository = (application as MoreFocusApplication)
-            .appContainer
-            .settingsRepository
+        val container = (application as MoreFocusApplication).appContainer
+        settingsRepository = container.settingsRepository
+        container.dailyUsageNotification.start()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         feedReelMask = FeedReelMask(this, windowManager)
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
@@ -164,6 +164,12 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
         val packageName = eventContext?.packageName
             ?.takeIf { it.isNotBlank() }
             ?: activeRoot()?.packageName?.toString()
+        // Updating the notification can emit status bar events while the video is still in focus.
+        val trackedVideoPackage = verticalVideosSessionPackageName
+        if (trackedVideoPackage != null && packageName != trackedVideoPackage &&
+            activeRoot()?.packageName?.toString() == trackedVideoPackage
+        ) return
+
         val monitoringScope = settingsRepository.getMonitoringScope()
 
         if (!monitoringScope.monitors(packageName)) {
@@ -287,6 +293,7 @@ class MoreFocusAccessibilityService : AccessibilityService(), SavedStateRegistry
     }
 
     override fun onDestroy() {
+        (application as MoreFocusApplication).appContainer.dailyUsageNotification.stop()
         feedReelMask?.clear()
         stopTracking(System.currentTimeMillis())
         hideOverlay()
